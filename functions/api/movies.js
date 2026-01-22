@@ -12,7 +12,6 @@ export async function onRequest(context) {
     return new Response(JSON.stringify(results), {
       headers: {
         "Content-Type": "application/json",
-        // This line is crucial:
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
         "Pragma": "no-cache",
         "Expires": "0"
