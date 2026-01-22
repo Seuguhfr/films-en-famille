@@ -695,12 +695,8 @@
         const setLocalCache = (id, data) => {
             const director = data.credits?.crew?.find(p => p.job === 'Director')?.name || 'Inconnu';
             
-            // LOGIC FOR ENGLISH COVER: Check if specific English images exist
+            // LOGIC FIXED: Just use the default poster_path (which is French because of the request param)
             let finalPoster = data.poster_path;
-            if (data.images && data.images.posters && data.images.posters.length > 0) {
-                // Since we asked for 'en,null', index 0 should be the best English or textless one
-                finalPoster = data.images.posters[0].file_path;
-            }
 
             localStorage.setItem(`tmdb_${id}`, JSON.stringify({
                 title: data.title, 
@@ -779,8 +775,8 @@
                 // Note: item.tmdb_id matches your D1 column name
                 let tmdb = getLocalCache(item.tmdb_id);
                 if (!tmdb || !tmdb.genres || !tmdb.director || !tmdb.original_title) {
-                    // Ensure you are using your NEW secure TMDB proxy here as discussed before!
-                    const data = await fetchTMDB(`movie/${item.tmdb_id}`, '&append_to_response=credits,images&include_image_language=en,null');
+                    // CHANGED: We now request 'fr,null' images, but mainly rely on default poster_path
+                    const data = await fetchTMDB(`movie/${item.tmdb_id}`, '&append_to_response=credits,images&include_image_language=fr,null');
                     if(data) tmdb = setLocalCache(item.tmdb_id, data);
                 }
                 // Map D1 'item.id' to 'dbId' to match your existing logic
@@ -856,7 +852,7 @@
                 card.className = `movie-card ${m.watched ? 'is-watched' : ''}`;
                 card.onclick = () => openModal(m.dbId);
                 
-                // Uses the poster_path from cache, which should now be English if available
+                // Uses the poster_path from cache, which should now be French by default
                 const img = m.poster_path ? `https://image.tmdb.org/t/p/w342${m.poster_path}` : 'https://via.placeholder.com/300x450';
                 const timeStr = formatRuntime(m.runtime);
                 const rating = m.vote_average ? m.vote_average.toFixed(1) : '';
@@ -1105,7 +1101,8 @@
                     
                     showToast("Film ajouté !"); 
                     
-                    const newData = await fetchTMDB(`movie/${tmdbId}`, '&append_to_response=credits,images&include_image_language=en,null');
+                    // CHANGED: We now request 'fr,null' images, but mainly rely on default poster_path
+                    const newData = await fetchTMDB(`movie/${tmdbId}`, '&append_to_response=credits,images&include_image_language=fr,null');
                     const cached = setLocalCache(tmdbId, newData);
                     
                     allMovies.unshift({ ...cached, dbId: newRow.id, watched: false, tmdbId });
