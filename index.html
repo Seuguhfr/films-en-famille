@@ -1020,7 +1020,7 @@
                 // We perform two searches in parallel: one in French, one in English.
                 const [frData, enData] = await Promise.all([
                     fetchTMDB('search/movie', `&query=${encodeURIComponent(q)}`, 'fr-FR'),
-                    fetchTMDB('search/movie', `&query=${encodeURIComponent(q)}`, 'en-US')
+                    fetchTMDB('search/movie', `&query=${encodeURIComponent(q)}`, 'fr-FR')
                 ]);
 
                 if (searchInput.value !== q) return;
