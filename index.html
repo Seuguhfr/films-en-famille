@@ -559,7 +559,6 @@
     <div class="vhs-overlay"></div> 
     <canvas id="matrix-canvas"></canvas>
 
-    <!-- Content Wrapper for VHS Filter safety -->
     <div id="main-content">
         <header>
             <div class="header-content">
@@ -624,27 +623,21 @@
 
     <div id="toast"><i data-lucide="check-circle" size="20" color="var(--green)"></i> <span id="toast-msg">Notification</span></div>
 
-    <!-- UPDATED MODAL STRUCTURE -->
     <div id="modal" class="modal-overlay" onclick="closeModal(event)">
         <div id="modal-ambient-bg" class="modal-ambient-bg"></div>
         
-        <!-- The Static Frame -->
         <div class="modal-content" id="modal-content-box">
             
-            <!-- FIXED CLOSE BUTTON (Does NOT scroll) -->
             <button class="close-btn" onclick="closeModal(event, true)"><i data-lucide="x"></i></button>
 
-            <!-- SCROLLABLE AREA -->
             <div id="modal-scroll-wrapper" class="modal-scroll-wrapper">
                 <div class="modal-hero">
                     <img id="m-backdrop" class="modal-backdrop" src="">
                 </div>
                 
                 <div class="modal-body">
-                    <!-- Sentinel for scroll detection -->
                     <div id="sticky-sentinel" class="sticky-sentinel"></div>
                     
-                    <!-- Sticky Header (Inside scroll, so it sticks) -->
                     <div id="sticky-header" class="sticky-header">
                         <div class="header-text-group">
                             <h2 id="m-title" class="modal-title">Titre</h2>
@@ -657,7 +650,6 @@
                         </div>
                     </div>
                     
-                    <!-- Main Details -->
                     <div class="modal-details">
                         <div id="m-genre" class="genre-text"></div>
                         <div id="m-director" class="director-text"></div> 
@@ -1016,23 +1008,14 @@
                     (m.original_title && m.original_title.toLowerCase().includes(q.toLowerCase()))
                 );
                 
-                // 2. Fetch TMDB (Dual Language Search)
-                // We perform two searches in parallel: one in French, one in English.
-                const [frData, enData] = await Promise.all([
-                    fetchTMDB('search/movie', `&query=${encodeURIComponent(q)}`, 'fr-FR'),
-                    fetchTMDB('search/movie', `&query=${encodeURIComponent(q)}`, 'fr-FR')
-                ]);
+                // 2. Fetch TMDB (FRENCH ONLY)
+                const data = await fetchTMDB('search/movie', `&query=${encodeURIComponent(q)}`, 'fr-FR');
 
                 if (searchInput.value !== q) return;
 
-                const frResults = frData?.results || [];
-                const enResults = enData?.results || [];
+                const remoteResults = data?.results || [];
                 
-                // Deduplicate: Prioritize French results, append unique English results
-                const seenIds = new Set(frResults.map(m => m.id));
-                const combined = [...frResults, ...enResults.filter(m => !seenIds.has(m.id))];
-
-                if (!combined.length && !localMatches.length) {
+                if (!remoteResults.length && !localMatches.length) {
                     resultsBox.style.display = 'none';
                     return;
                 }
@@ -1078,9 +1061,8 @@
                     });
                 }
 
-                // Render Remote Matches (filtering out duplicates)
-                // We sort by popularity to show best matches first
-                const sorted = combined.sort((a, b) => b.popularity - a.popularity).slice(0, 10);
+                // Render Remote Matches (Sorted by popularity)
+                const sorted = remoteResults.sort((a, b) => b.popularity - a.popularity).slice(0, 10);
                 
                 const enriched = await Promise.all(sorted.map(async m => {
                     // Check if already in list
