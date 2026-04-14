@@ -2,7 +2,7 @@ export async function onRequest(context) {
   const { env } = context;
   try {
     const { results } = await env.DB.prepare(
-      "SELECT tmdb_id FROM movies WHERE watched = 0"
+      "SELECT tmdb_id FROM movies"
     ).all();
 
     // Radarr's Custom List STRICTLY wants 'tmdbId' exactly like this:
