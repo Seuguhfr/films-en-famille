@@ -11,8 +11,10 @@ export async function onRequest(context) {
     ).all();
 
     // Radarr expects a very specific JSON format: an array of objects with the key "tmdbId"
+    // The StevenLu / Radarr API format
     const radarrFeed = results.map(row => ({
-      tmdbId: row.tmdb_id
+      title: "Cloudflare Sync", // Radarr requires a title field, even a fake one
+      tmdb_id: parseInt(row.tmdb_id, 10) // Note the underscore! tmdb_id instead of tmdbId
     }));
 
     // Return the formatted feed to Radarr
