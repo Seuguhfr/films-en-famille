@@ -1,15 +1,13 @@
 export async function onRequest(context) {
   const { env } = context;
-
   try {
     const { results } = await env.DB.prepare(
       "SELECT tmdb_id FROM movies WHERE watched = 0"
     ).all();
 
-    // The StevenLu Format
+    // Radarr's Custom List STRICTLY wants 'tmdbId' exactly like this:
     const radarrFeed = results.map(row => ({
-      title: "Cloudflare Sync", // Radarr requires a title string to safely parse the object
-      tmdb_id: parseInt(row.tmdb_id, 10) // StevenLu specifically uses the underscore format
+      tmdbId: parseInt(row.tmdb_id, 10)
     }));
 
     return new Response(JSON.stringify(radarrFeed), {
