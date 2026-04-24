@@ -1,13 +1,15 @@
 export async function onRequest(context) {
   const { env } = context;
   try {
+    // On ne sélectionne que les films qui ont bien un ID IMDb valide
     const { results } = await env.DB.prepare(
-      "SELECT tmdb_id FROM movies"
+      "SELECT title, imdb_id FROM movies WHERE imdb_id IS NOT NULL AND imdb_id != ''"
     ).all();
 
+    // Le format StevenLu exige EXACTEMENT ces deux clés, rien de plus.
     const radarrFeed = results.map(row => ({
-      tmdb_id: parseInt(row.tmdb_id, 10),
-      title: "Watchlist ID " + row.tmdb_id 
+      title: row.title,
+      imdb_id: row.imdb_id
     }));
 
     return new Response(JSON.stringify(radarrFeed), {
