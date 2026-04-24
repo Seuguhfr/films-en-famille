@@ -5,9 +5,9 @@ export async function onRequest(context) {
       "SELECT tmdb_id FROM movies"
     ).all();
 
-    // Radarr's Custom List STRICTLY wants 'tmdbId' exactly like this:
     const radarrFeed = results.map(row => ({
-      tmdbId: parseInt(row.tmdb_id, 10)
+      tmdbId: parseInt(row.tmdb_id, 10),
+      title: "Watchlist ID " + row.tmdb_id 
     }));
 
     return new Response(JSON.stringify(radarrFeed), {
