@@ -6,7 +6,7 @@ export async function onRequest(context) {
     ).all();
 
     const radarrFeed = results.map(row => ({
-      tmdbId: parseInt(row.tmdb_id, 10),
+      tmdb_id: parseInt(row.tmdb_id, 10),
       title: "Watchlist ID " + row.tmdb_id 
     }));
 
