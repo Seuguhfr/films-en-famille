@@ -1,6 +1,5 @@
 export async function onRequest(context) {
   const { request, env } = context;
-  const url = new URL(request.url);
 
   // 1. GET: Load all movies
   if (request.method === "GET") {
@@ -8,7 +7,6 @@ export async function onRequest(context) {
       "SELECT * FROM movies ORDER BY id DESC"
     ).all();
 
-    // We return a new Response with explicit headers
     return new Response(JSON.stringify(results), {
       headers: {
         "Content-Type": "application/json",
@@ -19,21 +17,33 @@ export async function onRequest(context) {
     });
   }
 
-  // 2. POST: Add a movie
+  // 2. POST: Add a movie (ENRICHED WITH TMDB DATA)
   if (request.method === "POST") {
     const { tmdb_id } = await request.json();
     
-    // Insert and return the new row (to get the ID)
-    const result = await env.DB.prepare(
-      "INSERT INTO movies (tmdb_id, watched) VALUES (?, ?)"
-    ).bind(tmdb_id, false).run();
-
-    // In SQLite/D1, we have to fetch the last inserted ID manually if we want it back immediately
-    // or just return success. Here we construct the object to send back.
-    // result.meta.last_row_id contains the new ID.
-    const newId = result.meta.last_row_id;
+    // --- NOUVEAU : On va chercher les infos IMDb et le Titre ---
+    let title = "Titre Inconnu";
+    let imdb_id = "";
     
-    return Response.json([{ id: newId, tmdb_id, watched: false }]);
+    try {
+      const tmdbRes = await fetch(`https://api.themoviedb.org/3/movie/${tmdb_id}?api_key=${env.TMDB_KEY}&language=fr-FR`);
+      if (tmdbRes.ok) {
+        const tmdbData = await tmdbRes.json();
+        title = tmdbData.title || tmdbData.original_title || title;
+        imdb_id = tmdbData.imdb_id || "";
+      }
+    } catch (e) {
+      console.error("TMDB Fetch Error during POST:", e);
+    }
+    // ------------------------------------------------------------
+
+    // Insert en incluant le titre et l'imdb_id
+    const result = await env.DB.prepare(
+      "INSERT INTO movies (tmdb_id, watched, title, imdb_id) VALUES (?, ?, ?, ?)"
+    ).bind(tmdb_id, false, title, imdb_id).run();
+
+    const newId = result.meta.last_row_id;
+    return Response.json([{ id: newId, tmdb_id, watched: false, title, imdb_id }]);
   }
 
   // 3. PATCH: Mark as watched/unwatched
