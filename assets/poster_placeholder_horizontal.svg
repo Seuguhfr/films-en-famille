@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 721.8 406.01" width="100%" height="100%">
+  <defs>
+    <linearGradient id="a">
+      <stop offset="0" stop-color="#c2c2c2"/>
+      <stop offset="1" stop-color="#9f9f9f"/>
+    </linearGradient>
+    <linearGradient id="b" x1="660.07" y1="6.6" x2="658.46" y2="108.78" gradientTransform="translate(-45.25 .35)" gradientUnits="userSpaceOnUse" href="#a"/>
+  </defs>
+  
+  <!-- Background Rect adapted to 16:9 -->
+  <rect width="721.8" height="406.01" fill="#eee" rx="7.01"/>
+  
+  <!-- Centered Graphic Group -->
+  <g transform="translate(196 65)">
+    <!-- Back Card -->
+    <rect width="82.49" height="90.47" x="39.63" y="55.96" fill="#9f9f9f" rx="8.4" transform="rotate(-16.34)"/>
+    
+    <!-- Front Card (Polaroid Style) -->
+    <g transform="translate(100, 0)">
+      <rect width="107.83" height="115.97" fill="url(#b)" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="5.4" rx="4.6"/>
+      <g stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="13.07" transform="matrix(.17265 0 0 .17265 -34.7 7.98)">
+        <rect width="491.11" height="450" x="270" y="107.36" fill="#ccc"/>
+        <rect width="491.11" height="210" x="270" y="107.36" fill="#fff"/>
+        <path fill="#ccc" d="m300 317.36 38.46-53.54 60.53-45.16 15.88 18.57 13.62-38.68 8.2-2.98 13.31-28.21 180 180"/>
+        <path fill="#b3b3b3" d="M180 60c4.09 16.47 7.71 33.07 10.85 49.75 2.38 12.66 4.49 25.37 6.32 38.13l-22.07-7.16-46.11-29.42 5.32 46.43-1.61 24.79 10.05 30.37 73.19-11.75L300 180l-47.8-77.43-9.7 14.93-27.12-22.12Z" transform="translate(270 107.36)"/>
+        <path fill="#ccc" d="m420 347.36 81.9-74.43 18.5-9.68 23.66-44.19 25.94-21.7 180 180"/>
+        <path fill="#b3b3b3" d="M570 197.36l35.94 80.91v60.22l22.46 19.47c6.52-6.45 14.15-11.79 22.44-15.7 14.83-7.01 31.34-9.36 47.17-13.63 6.43-1.73 12.91-3.85 18.21-7.87 1.35-1.02 2.62-2.16 3.78-3.4h-30l-40.52-40.55-29.86-48.92-10.25 8.84Z"/>
+        <path fill="#fff" d="M420 557.36c-.42-9.6-8.82-17.61 17.13-30.67 31.83-16.02 125.89-35.89 152.15-59.98 19.43-17.83-70.42-37.67-55.02-59.07 6.98-9.71 59.04-19.97 82.15-30.28 21.9-9.76 15.14-19.8 31.4-29.97 15.71-9.83 68.35-19.78 72.19-30.03-10.41 10.52-68.83 20.4-90 30-22.34 10.13-21.47 19.93-49.43 29.48-30.13 10.3-89.14 20.56-102.71 30.52-28.41 20.87 46.86 42.6 16.2 60-31.52 17.57-139.34 37.3-184.06 54-30.9 11.55-28.41 17.75-30 30"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Centered Text -->
+  <text x="360.9" y="280" fill="#767676" font-family="sans-serif" font-size="32" text-anchor="middle" font-weight="bold">
+    <tspan x="360.9" dy="0">PAS D'AFFICHE</tspan>
+    <tspan x="360.9" dy="42">DISPONIBLE</tspan>
+  </text>
+</svg>
