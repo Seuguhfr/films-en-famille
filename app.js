@@ -16,8 +16,11 @@ const Store = {
     remove: (key) => {
         try { localStorage.removeItem(key); } catch {}
     },
-    getCache: (id) => Store.get(`tmdb_movie_${id}`),
-    setCache: (id, data) => Store.set(`tmdb_movie_${id}`, data),
+    getCache: (id) => Store.get(`tmdb_movie_${id}`) || Store.get(`tmdb_${id}`) || Store.get(`tmdb_v2_deep_movie_${id}`),
+    setCache: (id, data) => {
+        Store.set(`tmdb_movie_${id}`, data);
+        Store.set(`tmdb_${id}`, data);
+    },
 };
 
 const state = {
@@ -119,19 +122,25 @@ async function loadMovies() {
         const res = await fetch(`/api/movies?t=${Date.now()}`);
         if (res.ok) {
             dbMovies = await res.json();
+        } else {
+            console.error('Fetch /api/movies failed with status:', res.status);
         }
     } catch (e) {
         console.error('Error loading movies from API:', e);
     }
 
-    if (!dbMovies || dbMovies.length === 0) {
+    const moviesList = Array.isArray(dbMovies) ? dbMovies : (dbMovies?.media || dbMovies?.results || []);
+
+    if (!moviesList || moviesList.length === 0) {
         state.allMovies = [];
         renderGrid();
         return;
     }
 
+    let needsMigration = false;
+
     // Enrich items if metadata is missing
-    const promises = dbMovies.map(async (item) => {
+    const promises = moviesList.map(async (item) => {
         let genresArr = [];
         try {
             genresArr = typeof item.genres === 'string' ? JSON.parse(item.genres) : (item.genres || []);
@@ -147,6 +156,7 @@ async function loadMovies() {
                 original_title: item.original_title || '',
                 poster_path: item.poster_path,
                 backdrop_path: item.backdrop_path,
+                overview: item.overview || '',
                 release_date: item.release_date,
                 vote_average: Number(item.vote_average) || 0,
                 runtime: Number(item.runtime) || 0,
@@ -156,16 +166,18 @@ async function loadMovies() {
             };
         }
 
+        needsMigration = true;
+
         // Otherwise check local cache or fetch TMDB
         let cached = Store.getCache(item.tmdb_id);
-        if (!cached || !cached.director || !cached.genres) {
+        if (!cached || !cached.director || !cached.genres || !cached.poster_path) {
             const data = await fetchTMDB(`movie/${item.tmdb_id}`, '&append_to_response=credits,images&include_image_language=fr,null');
             if (data) {
                 const dir = data.credits?.crew?.find(p => p.job === 'Director')?.name || 'Inconnu';
                 cached = {
                     title: data.title || data.original_title || item.title || 'Titre inconnu',
                     original_title: data.original_title || '',
-                    poster_path: data.poster_path,
+                    poster_path: data.poster_path || (data.images?.posters?.length > 0 ? data.images.posters[0].file_path : null),
                     backdrop_path: data.backdrop_path,
                     overview: data.overview || '',
                     release_date: data.release_date,
@@ -187,7 +199,7 @@ async function loadMovies() {
             original_title: cached?.original_title || item.original_title || '',
             poster_path: cached?.poster_path || item.poster_path,
             backdrop_path: cached?.backdrop_path || item.backdrop_path,
-            overview: cached?.overview || '',
+            overview: cached?.overview || item.overview || '',
             release_date: cached?.release_date || item.release_date,
             vote_average: Number(cached?.vote_average || item.vote_average) || 0,
             runtime: Number(cached?.runtime || item.runtime) || 0,
@@ -199,6 +211,11 @@ async function loadMovies() {
 
     state.allMovies = (await Promise.all(promises)).filter(Boolean);
     applySort();
+
+    // Trigger migration in background if any entries lacked rich data
+    if (needsMigration) {
+        fetch('/api/migrate').catch(() => {});
+    }
 }
 
 // ─── Render Grid ──────────────────────────────────────────────────────────────
