@@ -191,7 +191,7 @@ def main():
     total_radarr = len(radarr_movies)
     log(f"Successfully retrieved {total_radarr} movies from Radarr!", color="green")
 
-    # Map Radarr objects to simple sync format
+    # Map Radarr objects to simple sync format (watched defaults to False)
     formatted = []
     for m in radarr_movies:
         tmdb_id = m.get("tmdbId")
@@ -200,7 +200,7 @@ def main():
                 "tmdb_id": tmdb_id,
                 "title": m.get("title", "Titre Inconnu"),
                 "imdb_id": m.get("imdbId", ""),
-                "watched": m.get("hasFile", False),
+                "watched": False,
             })
 
     log(f"Valid movies with TMDB IDs: {len(formatted)}", color="cyan")
