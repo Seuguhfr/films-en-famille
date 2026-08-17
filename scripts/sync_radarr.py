@@ -46,8 +46,8 @@ def parse_arguments():
     )
     parser.add_argument(
         "--radarr-url",
-        default=os.getenv("RADARR_URL", "http://localhost:7878"),
-        help="Radarr server URL (default: http://localhost:7878)",
+        default=os.getenv("RADARR_URL", "http://192.168.1.50:7878"),
+        help="Radarr server URL (default: http://192.168.1.50:7878)",
     )
     parser.add_argument(
         "--radarr-key",
@@ -57,7 +57,7 @@ def parse_arguments():
     parser.add_argument(
         "--webapp-url",
         default=os.getenv(
-            "WEBAPP_URL", "https://v2.films-en-famille.pages.dev"
+            "WEBAPP_URL", "https://v2.filmsfamiliaux.pages.dev"
         ),
         help="Films en Famille base URL (e.g. https://v2.filmsfamiliaux.pages.dev)",
     )
@@ -168,8 +168,15 @@ def main():
     if not webapp_url:
         try:
             webapp_url = input(
-                "Enter your Webapp URL (e.g. https://v2.filmsfamiliaux.pages.dev): "
-            ).strip()
+                "Enter your Webapp URL (default: https://v2.filmsfamiliaux.pages.dev): "
+            ).strip() or "https://v2.filmsfamiliaux.pages.dev"
+        except (KeyboardInterrupt, EOFError):
+            print("\nAborted.")
+            sys.exit(1)
+
+    if not secret:
+        try:
+            secret = input("Enter your Webhook Secret (or press Enter if none): ").strip()
         except (KeyboardInterrupt, EOFError):
             print("\nAborted.")
             sys.exit(1)
