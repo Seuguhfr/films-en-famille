@@ -173,13 +173,8 @@
 
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
-            if (checkEasterEggs(e.target.value)) {
-                e.target.value = '';
-                const resultsBox = document.getElementById('search-results');
-                if (resultsBox) resultsBox.style.display = 'none';
-                const clearBtn = document.getElementById('clear-btn');
-                if (clearBtn) clearBtn.classList.remove('visible');
-            }
+            // Check for easter eggs without wiping the input field or blocking movie searches
+            checkEasterEggs(e.target.value);
         });
     }
 
