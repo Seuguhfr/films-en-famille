@@ -70,14 +70,16 @@ export async function onRequest(context) {
   async function callGeminiApi({ systemPrompt, contents, responseSchema, apiKey, targetModel }) {
     const modelsToTry = [
       targetModel,
-      "gemini-1.5-flash",
+      "gemini-3.8-flash",
+      "gemini-2.5-flash",
+      "gemini-2.0-flash-exp",
       "gemini-2.0-flash",
+      "gemini-1.5-flash",
       "gemini-1.5-flash-8b",
-      "gemini-1.5-pro",
-      "gemini-2.5-flash"
+      "gemini-1.5-pro"
     ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
 
-    let lastError = null;
+    const errors = [];
     let successfulModel = null;
     let result = null;
 
@@ -101,8 +103,9 @@ export async function onRequest(context) {
 
         if (!res.ok) {
           const errText = await res.text();
-          lastError = `[${mod}] HTTP ${res.status}: ${errText}`;
-          console.warn(`Gemini call failed with model ${mod}:`, lastError);
+          const errInfo = `[${mod}] HTTP ${res.status}: ${errText.trim()}`;
+          errors.push(errInfo);
+          console.warn(`Gemini call failed with model ${mod}:`, errInfo);
           continue;
         }
 
@@ -110,8 +113,9 @@ export async function onRequest(context) {
         const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!rawText) {
           const finishReason = data.candidates?.[0]?.finishReason || "UNKNOWN";
-          lastError = `[${mod}] Empty response (finishReason: ${finishReason})`;
-          console.warn(`Gemini empty candidate with model ${mod}:`, lastError);
+          const errInfo = `[${mod}] Empty response (finishReason: ${finishReason})`;
+          errors.push(errInfo);
+          console.warn(`Gemini empty candidate with model ${mod}:`, errInfo);
           continue;
         }
 
@@ -120,12 +124,13 @@ export async function onRequest(context) {
         result = parsed;
         break;
       } catch (e) {
-        lastError = `[${mod}] Exception: ${e.message}`;
-        console.warn(`Gemini exception with model ${mod}:`, lastError);
+        const errInfo = `[${mod}] Exception: ${e.message}`;
+        errors.push(errInfo);
+        console.warn(`Gemini exception with model ${mod}:`, errInfo);
       }
     }
 
-    return { result, model: successfulModel, error: result ? null : lastError };
+    return { result, model: successfulModel, error: result ? null : errors.join(" | \n") };
   }
 
   try {
