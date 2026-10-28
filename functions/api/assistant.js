@@ -66,11 +66,13 @@ export async function onRequest(context) {
     return synopsis || "Synopsis non disponible.";
   }
 
-  // Unified Gemini API Caller with Model Fallback
+  // Unified Gemini API Caller with Model Fallback and 503 Retry
   async function callGeminiApi({ systemPrompt, contents, responseSchema, apiKey, targetModel }) {
     const modelsToTry = [
       targetModel,
       "gemini-3.8-flash",
+      "gemini-3.8-pro",
+      "gemini-2.5-flash",
       "gemini-1.5-flash"
     ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
 
@@ -79,53 +81,75 @@ export async function onRequest(context) {
     let result = null;
 
     for (const mod of modelsToTry) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${apiKey}`;
-        const payload = {
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents,
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${apiKey}`;
+          const payload = {
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents,
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema
+            }
+          };
+
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          if (!res.ok) {
+            const errText = await res.text();
+            const errInfo = `[${mod} (att ${attempt})] HTTP ${res.status}: ${errText.trim()}`;
+            errors.push(errInfo);
+            if ((res.status === 503 || res.status === 429) && attempt === 1) {
+              await new Promise(r => setTimeout(r, 600));
+              continue;
+            }
+            break;
           }
-        };
 
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
+          const data = await res.json();
+          const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (!rawText) {
+            const finishReason = data.candidates?.[0]?.finishReason || "UNKNOWN";
+            const errInfo = `[${mod}] Empty candidate (finishReason: ${finishReason})`;
+            errors.push(errInfo);
+            break;
+          }
 
-        if (!res.ok) {
-          const errText = await res.text();
-          const errInfo = `[${mod}] HTTP ${res.status}: ${errText.trim()}`;
+          const parsed = JSON.parse(rawText);
+          successfulModel = mod;
+          result = parsed;
+          break;
+        } catch (e) {
+          const errInfo = `[${mod}] Exception: ${e.message}`;
           errors.push(errInfo);
-          console.warn(`Gemini call failed with model ${mod}:`, errInfo);
-          continue;
+          break;
         }
-
-        const data = await res.json();
-        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!rawText) {
-          const finishReason = data.candidates?.[0]?.finishReason || "UNKNOWN";
-          const errInfo = `[${mod}] Empty response (finishReason: ${finishReason})`;
-          errors.push(errInfo);
-          console.warn(`Gemini empty candidate with model ${mod}:`, errInfo);
-          continue;
-        }
-
-        const parsed = JSON.parse(rawText);
-        successfulModel = mod;
-        result = parsed;
-        break;
-      } catch (e) {
-        const errInfo = `[${mod}] Exception: ${e.message}`;
-        errors.push(errInfo);
-        console.warn(`Gemini exception with model ${mod}:`, errInfo);
       }
+
+      if (result) break;
     }
 
-    return { result, model: successfulModel, error: result ? null : errors.join(" | \n") };
+    let availableModels = [];
+    if (!result) {
+      try {
+        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          availableModels = (listData.models || []).map(m => m.name.replace("models/", ""));
+        }
+      } catch (lErr) {}
+    }
+
+    return { 
+      result, 
+      model: successfulModel, 
+      error: result ? null : errors.join(" | \n"),
+      availableModels
+    };
   }
 
   try {
@@ -190,7 +214,7 @@ Synopsis : ${synopsis}`;
         required: ["message"]
       };
 
-      const { result, model: usedModel, error: geminiError } = await callGeminiApi({
+      const { result, model: usedModel, error: geminiError, availableModels } = await callGeminiApi({
         systemPrompt: turn1SystemPrompt,
         contents: [{ role: "user", parts: [{ text: "Présente-moi ce film." }] }],
         responseSchema: turn1Schema,
@@ -215,7 +239,8 @@ Synopsis : ${synopsis}`;
           reasoning: null,
           usedFallback,
           error: geminiError,
-          model: usedModel || requestedModel
+          model: usedModel || requestedModel,
+          availableModels: availableModels?.length ? availableModels : undefined
         }
       });
     }
@@ -314,7 +339,7 @@ ${catalogueLines}`;
       required: ["internal_reasoning", "movie_id", "message"]
     };
 
-    let { result: parsed, model: usedModel, error: geminiError } = await callGeminiApi({
+    let { result: parsed, model: usedModel, error: geminiError, availableModels } = await callGeminiApi({
       systemPrompt: turn2SystemPrompt,
       contents,
       responseSchema: turn2Schema,
@@ -376,7 +401,8 @@ ${catalogueLines}`;
         reasoning: reasoning || null,
         usedFallback,
         error: geminiError,
-        model: usedModel || requestedModel
+        model: usedModel || requestedModel,
+        availableModels: availableModels?.length ? availableModels : undefined
       }
     });
 
