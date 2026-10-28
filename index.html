@@ -40,6 +40,12 @@
                 </h1>
 
                 <div class="header-right">
+                    <button id="btn-open-assistant" class="btn-assistant-header" aria-label="Conseille-moi un film">
+                        <i data-lucide="sparkles" size="16" aria-hidden="true"></i>
+                        <span class="btn-assistant-text">Conseille-moi un film</span>
+                        <span class="btn-assistant-emoji">🎬</span>
+                    </button>
+
                     <button id="mobile-search-trigger" class="mobile-search-trigger" aria-label="Ouvrir la recherche">
                         <i data-lucide="search" size="18" aria-hidden="true"></i>
                     </button>
@@ -225,6 +231,118 @@
                         </div>
 
                         <button id="btn-delete" class="btn btn-danger">Retirer de la liste</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LE VENDEUR (AI CONCIERGE) MODAL -->
+    <div id="assistant-modal" class="modal-overlay assistant-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="assistant-title">
+        <div id="assistant-ambient-bg" class="modal-ambient-bg" aria-hidden="true"></div>
+        
+        <div class="modal-content assistant-modal-content" id="assistant-content-box">
+            <!-- Header -->
+            <div class="assistant-modal-header">
+                <div class="assistant-profile">
+                    <div class="assistant-avatar" title="📼 Le Vendeur">
+                        <span class="avatar-icon">📼</span>
+                        <span class="status-indicator" title="En rayon"></span>
+                    </div>
+                    <div class="assistant-title-group">
+                        <h2 id="assistant-title" class="assistant-name">Le Vendeur</h2>
+                        <span class="assistant-tagline">Votre concierge vidéoclub</span>
+                    </div>
+                </div>
+                <div class="assistant-header-actions">
+                    <button id="btn-assistant-restart" class="circle-btn" title="Recommencer" aria-label="Recommencer">
+                        <i data-lucide="rotate-ccw" size="16"></i>
+                    </button>
+                    <button id="btn-assistant-close" class="circle-btn" aria-label="Fermer">
+                        <i data-lucide="x" size="16"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat & Feed View -->
+            <div id="assistant-main-view" class="assistant-main-view">
+                <div id="assistant-scroll-area" class="assistant-scroll-area">
+                    <div id="assistant-chat-messages" class="assistant-chat-messages">
+                        <!-- Populated dynamically: assistant bubbles, movie cards, user replies -->
+                    </div>
+                    
+                    <div id="assistant-loading" class="assistant-loading hidden" aria-live="polite">
+                        <div class="typing-indicator">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <span class="loading-text">Le vendeur fouille dans ses rayons...</span>
+                    </div>
+                </div>
+
+                <!-- Bottom Controls / Input Bar -->
+                <div class="assistant-bottom-bar">
+                    <!-- Quick Actions -->
+                    <div class="assistant-quick-actions" id="assistant-quick-actions">
+                        <button id="btn-accept-pick" class="btn btn-accept" disabled>
+                            <i data-lucide="check-circle-2" size="18"></i>
+                            <span>On regarde ça ce soir !</span>
+                        </button>
+                        <button id="btn-pass-pick" class="btn btn-pass" disabled>
+                            <i data-lucide="shuffle" size="16"></i>
+                            <span>Juste un autre</span>
+                        </button>
+                    </div>
+
+                    <!-- Free Text Bar -->
+                    <form id="assistant-input-form" class="assistant-input-form">
+                        <div class="assistant-input-wrapper">
+                            <input 
+                                type="text" 
+                                id="assistant-user-input" 
+                                class="assistant-input" 
+                                placeholder="Trop violent ? Pas d'humeur ? Dis-moi tout..."
+                                maxlength="100"
+                                autocomplete="off"
+                                autocorrect="off"
+                                spellcheck="false"
+                                disabled
+                            >
+                            <span id="assistant-char-count" class="assistant-char-count">100</span>
+                        </div>
+                        <button type="submit" id="btn-assistant-send" class="btn-assistant-send" aria-label="Envoyer" disabled>
+                            <i data-lucide="send" size="18"></i>
+                        </button>
+                    </form>
+
+                    <!-- Cooldown Bar / Notice -->
+                    <div id="assistant-cooldown-bar" class="assistant-cooldown-bar hidden">
+                        <span id="assistant-cooldown-text">Pause réflexion (3s)...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- "Tonight's Pick / Ticket" Celebratory View -->
+            <div id="assistant-ticket-view" class="assistant-ticket-view hidden" aria-hidden="true">
+                <div class="ticket-celebration">
+                    <div class="ticket-header-badge">
+                        <i data-lucide="sparkles" size="14"></i>
+                        <span>PROGRAMME DU SOIR SÉLECTIONNÉ</span>
+                    </div>
+                    <div class="ticket-card" id="ticket-card-content">
+                        <!-- Populated with chosen movie ticket info -->
+                    </div>
+                    <div class="ticket-actions">
+                        <button id="btn-ticket-open-details" class="btn btn-primary">
+                            <i data-lucide="info" size="18"></i>
+                            <span>Voir la fiche complète</span>
+                        </button>
+                        <button id="btn-ticket-restart" class="btn btn-secondary">
+                            <i data-lucide="refresh-cw" size="16"></i>
+                            <span>Choisir un autre film</span>
+                        </button>
+                        <button id="btn-ticket-close" class="btn btn-ghost">
+                            Fermer
+                        </button>
                     </div>
                 </div>
             </div>

@@ -1011,6 +1011,416 @@ function startShuffleAnimation(pool) {
     }, 80);
 }
 
+// ─── Assistant ("Le Vendeur") Implementation ──────────────────────────────────
+const assistantModal = document.getElementById('assistant-modal');
+const btnOpenAssistant = document.getElementById('btn-open-assistant');
+const btnAssistantClose = document.getElementById('btn-assistant-close');
+const btnAssistantRestart = document.getElementById('btn-assistant-restart');
+const assistantChatMessages = document.getElementById('assistant-chat-messages');
+const assistantScrollArea = document.getElementById('assistant-scroll-area');
+const assistantLoading = document.getElementById('assistant-loading');
+const btnAcceptPick = document.getElementById('btn-accept-pick');
+const btnPassPick = document.getElementById('btn-pass-pick');
+const assistantInputForm = document.getElementById('assistant-input-form');
+const assistantUserInput = document.getElementById('assistant-user-input');
+const assistantCharCount = document.getElementById('assistant-char-count');
+const btnAssistantSend = document.getElementById('btn-assistant-send');
+const assistantCooldownBar = document.getElementById('assistant-cooldown-bar');
+const assistantCooldownText = document.getElementById('assistant-cooldown-text');
+const assistantMainView = document.getElementById('assistant-main-view');
+const assistantTicketView = document.getElementById('assistant-ticket-view');
+const ticketCardContent = document.getElementById('ticket-card-content');
+const btnTicketOpenDetails = document.getElementById('btn-ticket-open-details');
+const btnTicketRestart = document.getElementById('btn-ticket-restart');
+const btnTicketClose = document.getElementById('btn-ticket-close');
+const assistantAmbientBg = document.getElementById('assistant-ambient-bg');
+
+const assistantState = {
+    isOpen: false,
+    isFirstTurn: true,
+    rejectedIds: [],
+    history: [],
+    currentMovie: null,
+    currentMessage: '',
+    isLoading: false,
+    cooldownRemaining: 0,
+    cooldownTimer: null,
+    tonightPick: Store.get('films_tonight_pick', null)
+};
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function openAssistantModal() {
+    if (!assistantModal) return;
+    assistantState.isOpen = true;
+    document.body.classList.add('modal-open');
+    assistantModal.style.display = 'flex';
+    requestAnimationFrame(() => {
+        assistantModal.classList.add('open');
+    });
+
+    if (assistantState.isFirstTurn || !assistantState.currentMovie) {
+        startAssistantSession();
+    }
+}
+
+function closeAssistantModal(force = false) {
+    if (!assistantModal) return;
+    assistantState.isOpen = false;
+    assistantModal.classList.remove('open');
+    document.body.classList.remove('modal-open');
+    setTimeout(() => {
+        assistantModal.style.display = 'none';
+    }, 300);
+}
+
+function startAssistantSession() {
+    assistantState.isFirstTurn = true;
+    assistantState.rejectedIds = [];
+    assistantState.history = [];
+    assistantState.currentMovie = null;
+    assistantState.currentMessage = '';
+    assistantState.isLoading = false;
+    if (assistantState.cooldownTimer) clearInterval(assistantState.cooldownTimer);
+    assistantState.cooldownRemaining = 0;
+
+    assistantMainView?.classList.remove('hidden');
+    assistantTicketView?.classList.add('hidden');
+    if (assistantChatMessages) assistantChatMessages.innerHTML = '';
+    updateCooldownUI(0);
+    setInputControlsEnabled(false);
+
+    fetchAssistantTurn({
+        isFirstTurn: true,
+        rejectedIds: [],
+        history: [],
+        userInput: ''
+    });
+}
+
+function scrollAssistantToBottom() {
+    if (!assistantScrollArea) return;
+    requestAnimationFrame(() => {
+        assistantScrollArea.scrollTo({ top: assistantScrollArea.scrollHeight, behavior: 'smooth' });
+    });
+}
+
+function updateCooldownUI(remaining) {
+    if (remaining > 0) {
+        assistantCooldownBar?.classList.remove('hidden');
+        if (assistantCooldownText) {
+            assistantCooldownText.textContent = `Le vendeur réfléchit... (${remaining}s)`;
+        }
+    } else {
+        assistantCooldownBar?.classList.add('hidden');
+    }
+}
+
+function setInputControlsEnabled(enabled) {
+    if (btnAcceptPick) btnAcceptPick.disabled = !enabled;
+    if (btnPassPick) btnPassPick.disabled = !enabled;
+    if (btnAssistantSend) btnAssistantSend.disabled = !enabled;
+    if (assistantUserInput) assistantUserInput.disabled = !enabled;
+}
+
+function startCooldown(seconds = 3) {
+    assistantState.cooldownRemaining = seconds;
+    setInputControlsEnabled(false);
+    updateCooldownUI(assistantState.cooldownRemaining);
+
+    if (assistantState.cooldownTimer) clearInterval(assistantState.cooldownTimer);
+    assistantState.cooldownTimer = setInterval(() => {
+        assistantState.cooldownRemaining--;
+        updateCooldownUI(assistantState.cooldownRemaining);
+        if (assistantState.cooldownRemaining <= 0) {
+            clearInterval(assistantState.cooldownTimer);
+            assistantState.cooldownTimer = null;
+            setInputControlsEnabled(true);
+            if (assistantUserInput && window.innerWidth > 640) assistantUserInput.focus();
+        }
+    }, 1000);
+}
+
+function updateCharCount() {
+    if (!assistantUserInput || !assistantCharCount) return;
+    const remaining = 100 - (assistantUserInput.value.length || 0);
+    assistantCharCount.textContent = remaining;
+}
+
+async function fetchAssistantTurn(payload) {
+    assistantState.isLoading = true;
+    setInputControlsEnabled(false);
+    assistantLoading?.classList.remove('hidden');
+    scrollAssistantToBottom();
+
+    try {
+        const res = await fetch('/api/assistant', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Erreur serveur (${res.status})`);
+        }
+
+        const data = await res.json();
+        if (!data.movie) {
+            throw new Error(data.error || "Aucun film n'a été retourné");
+        }
+
+        assistantState.isFirstTurn = false;
+        const matchedLocal = state.allMovies.find(m => m.id === data.movie.id);
+        assistantState.currentMovie = {
+            ...data.movie,
+            overview: data.movie.overview || matchedLocal?.overview || 'Synopsis non disponible.',
+            genres: Array.isArray(data.movie.genres) ? data.movie.genres : (matchedLocal?.genres || [])
+        };
+        assistantState.currentMessage = data.message || '';
+
+        if (assistantAmbientBg) {
+            const bgImg = assistantState.currentMovie.backdrop_path 
+                ? `https://image.tmdb.org/t/p/w780${assistantState.currentMovie.backdrop_path}`
+                : (assistantState.currentMovie.poster_path ? `https://image.tmdb.org/t/p/w342${assistantState.currentMovie.poster_path}` : '');
+            if (bgImg) assistantAmbientBg.style.backgroundImage = `url(${bgImg})`;
+        }
+
+        renderPitchTurn(assistantState.currentMovie, assistantState.currentMessage);
+        startCooldown(3);
+
+    } catch (err) {
+        console.error('Assistant turn error:', err);
+        renderErrorBubble(err.message || 'Le vendeur a eu un petit problème pour fouiller dans ses rayons. Réessaie dans un instant.');
+        setInputControlsEnabled(true);
+    } finally {
+        assistantState.isLoading = false;
+        assistantLoading?.classList.add('hidden');
+        scrollAssistantToBottom();
+    }
+}
+
+function renderPitchTurn(movie, message) {
+    if (!assistantChatMessages) return;
+
+    const posterUrl = movie.poster_path 
+        ? `https://image.tmdb.org/t/p/w185${movie.poster_path}` 
+        : IMG_FALLBACK;
+    const year = (movie.release_date || '').split('-')[0] || 'Inconnue';
+    const rating = Number(movie.vote_average) ? Number(movie.vote_average).toFixed(1) : '-';
+    const runtime = movie.runtime ? formatRuntime(movie.runtime) : '';
+    const genres = Array.isArray(movie.genres) 
+        ? movie.genres.map(g => (typeof g === 'string' ? g : (g.name || ''))).filter(Boolean)
+        : [];
+    const genresHtml = genres.slice(0, 3).map(g => `<span class="amc-genre-tag">${escapeHtml(g)}</span>`).join('');
+    const synopsis = movie.overview || 'Synopsis non disponible.';
+
+    const div = document.createElement('div');
+    div.className = 'assistant-feed-item assistant-pitch-group';
+    div.dataset.movieId = movie.id;
+
+    div.innerHTML = `
+        <div class="assistant-bubble">
+            <div class="bubble-header">
+                <span class="bubble-author">📼 Le Vendeur</span>
+            </div>
+            <p class="bubble-text">${escapeHtml(message)}</p>
+        </div>
+
+        <div class="assistant-movie-card">
+            <div class="amc-poster-wrap">
+                <img src="${posterUrl}" alt="${escapeHtml(movie.title || '')}" class="amc-poster" loading="lazy" onerror="this.src='${IMG_FALLBACK}'">
+                <div class="amc-rating-badge">
+                    <i data-lucide="star" size="12"></i> ${rating}
+                </div>
+            </div>
+            <div class="amc-details">
+                <div class="amc-header">
+                    <h4 class="amc-title">${escapeHtml(movie.title || movie.original_title || 'Titre inconnu')}</h4>
+                    <span class="amc-year">(${year})</span>
+                </div>
+                <div class="amc-meta-row">
+                    ${runtime ? `<span class="amc-meta-item"><i data-lucide="clock" size="12"></i> ${runtime}</span>` : ''}
+                    ${movie.director && movie.director !== 'Inconnu' ? `<span class="amc-meta-item"><i data-lucide="user" size="12"></i> ${escapeHtml(movie.director)}</span>` : ''}
+                </div>
+                <div class="amc-genres">
+                    ${genresHtml}
+                </div>
+                <div class="amc-synopsis-wrap">
+                    <p class="amc-synopsis ${synopsis.length > 130 ? 'collapsed' : ''}">${escapeHtml(synopsis)}</p>
+                    ${synopsis.length > 130 ? '<button type="button" class="amc-expand-btn">Lire la suite</button>' : ''}
+                </div>
+            </div>
+        </div>
+    `;
+
+    const expandBtn = div.querySelector('.amc-expand-btn');
+    if (expandBtn) {
+        expandBtn.addEventListener('click', () => {
+            const synEl = div.querySelector('.amc-synopsis');
+            if (synEl) {
+                const isCollapsed = synEl.classList.contains('collapsed');
+                synEl.classList.toggle('collapsed');
+                expandBtn.textContent = isCollapsed ? 'Réduire' : 'Lire la suite';
+            }
+        });
+    }
+
+    div.querySelector('.amc-poster-wrap')?.addEventListener('click', () => {
+        openModal(movie.id);
+    });
+
+    assistantChatMessages.appendChild(div);
+    if (window.lucide) window.lucide.createIcons();
+}
+
+function renderUserBubble(text) {
+    if (!assistantChatMessages) return;
+    const div = document.createElement('div');
+    div.className = 'assistant-feed-item user-reply-item';
+    div.innerHTML = `
+        <div class="user-bubble">
+            <p class="user-bubble-text">${escapeHtml(text)}</p>
+        </div>
+    `;
+    assistantChatMessages.appendChild(div);
+}
+
+function renderErrorBubble(errorText) {
+    if (!assistantChatMessages) return;
+    const div = document.createElement('div');
+    div.className = 'assistant-feed-item';
+    div.innerHTML = `
+        <div class="assistant-bubble" style="border-color: rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.08);">
+            <div class="bubble-header">
+                <span class="bubble-author" style="color: var(--accent);">⚠️ Le Vendeur</span>
+            </div>
+            <p class="bubble-text">${escapeHtml(errorText)}</p>
+        </div>
+    `;
+    assistantChatMessages.appendChild(div);
+}
+
+function renderTicketView(movie, winningPitch) {
+    if (!ticketCardContent) return;
+    const posterUrl = movie.poster_path 
+        ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` 
+        : IMG_FALLBACK;
+    const year = (movie.release_date || '').split('-')[0] || 'Inconnue';
+    const rating = Number(movie.vote_average) ? Number(movie.vote_average).toFixed(1) : '-';
+    const runtime = movie.runtime ? formatRuntime(movie.runtime) : 'Durée inconnue';
+    const director = movie.director && movie.director !== 'Inconnu' ? movie.director : '';
+    const genres = Array.isArray(movie.genres) 
+        ? movie.genres.map(g => (typeof g === 'string' ? g : (g.name || ''))).filter(Boolean)
+        : [];
+    const genresStr = genres.join(' • ') || 'Film';
+
+    ticketCardContent.innerHTML = `
+        <div class="ticket-poster-wrap">
+            <img src="${posterUrl}" alt="${escapeHtml(movie.title || '')}" class="ticket-poster" onerror="this.src='${IMG_FALLBACK}'">
+        </div>
+        <h3 class="ticket-title">${escapeHtml(movie.title || movie.original_title || 'Titre inconnu')} (${year})</h3>
+        <div class="ticket-meta">
+            <span>⭐ ${rating}</span>
+            <span>•</span>
+            <span>⏱️ ${runtime}</span>
+            ${director ? `<span>•</span><span>🎬 ${escapeHtml(director)}</span>` : ''}
+        </div>
+        <div style="font-size: 0.8rem; color: #fbbf24; margin-bottom: 12px; font-weight: 600;">
+            ${escapeHtml(genresStr)}
+        </div>
+        ${winningPitch ? `<div class="ticket-quote">« ${escapeHtml(winningPitch)} »</div>` : ''}
+        <p class="ticket-synopsis">${escapeHtml(movie.overview || 'Bonne séance en famille !')}</p>
+    `;
+
+    if (window.lucide) window.lucide.createIcons();
+}
+
+function acceptCurrentPick() {
+    if (!assistantState.currentMovie || assistantState.isLoading) return;
+    
+    const movie = assistantState.currentMovie;
+    assistantState.tonightPick = {
+        id: movie.id,
+        title: movie.title || movie.original_title,
+        poster_path: movie.poster_path,
+        selectedAt: Date.now()
+    };
+    Store.set('films_tonight_pick', assistantState.tonightPick);
+
+    renderTicketView(movie, assistantState.currentMessage);
+    assistantMainView?.classList.add('hidden');
+    assistantTicketView?.classList.remove('hidden');
+
+    showToast('🎉 Film choisi pour ce soir ! Bon visionnage !');
+}
+
+function passCurrentPick() {
+    if (!assistantState.currentMovie || assistantState.isLoading || assistantState.cooldownRemaining > 0) return;
+
+    const m = assistantState.currentMovie;
+    assistantState.rejectedIds.push(Number(m.id));
+
+    const year = (m.release_date || '').split('-')[0] || 'Inconnue';
+    const genresStr = Array.isArray(m.genres) 
+        ? m.genres.map(g => (typeof g === 'string' ? g : (g.name || ''))).filter(Boolean).join(', ')
+        : 'Général';
+    const modelTurnText = `[Film proposé : #${m.id} - ${m.title || m.original_title} (${year}, ${genresStr}, ${m.runtime || 0}m)] ${assistantState.currentMessage}`;
+    assistantState.history.push({ role: 'model', text: modelTurnText });
+
+    renderUserBubble('🎲 Autre film, change de registre !');
+
+    fetchAssistantTurn({
+        isFirstTurn: false,
+        rejectedIds: assistantState.rejectedIds,
+        history: assistantState.history,
+        userInput: 'PASS'
+    });
+
+    assistantState.history.push({ role: 'user', text: '[ACTION: PASS]' });
+}
+
+function handleUserTextSubmit(e) {
+    if (e) e.preventDefault();
+    if (!assistantState.currentMovie || assistantState.isLoading || assistantState.cooldownRemaining > 0) return;
+
+    const rawText = assistantUserInput?.value || '';
+    const cleanText = rawText.trim().slice(0, 100);
+    if (!cleanText) return;
+
+    if (assistantUserInput) assistantUserInput.value = '';
+    updateCharCount();
+
+    const m = assistantState.currentMovie;
+    assistantState.rejectedIds.push(Number(m.id));
+
+    const year = (m.release_date || '').split('-')[0] || 'Inconnue';
+    const genresStr = Array.isArray(m.genres) 
+        ? m.genres.map(g => (typeof g === 'string' ? g : (g.name || ''))).filter(Boolean).join(', ')
+        : 'Général';
+    const modelTurnText = `[Film proposé : #${m.id} - ${m.title || m.original_title} (${year}, ${genresStr}, ${m.runtime || 0}m)] ${assistantState.currentMessage}`;
+    assistantState.history.push({ role: 'model', text: modelTurnText });
+
+    renderUserBubble(cleanText);
+
+    fetchAssistantTurn({
+        isFirstTurn: false,
+        rejectedIds: assistantState.rejectedIds,
+        history: assistantState.history,
+        userInput: cleanText
+    });
+
+    assistantState.history.push({ role: 'user', text: `Message du client : "${cleanText}"` });
+}
+
 // ─── Event Bindings ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     // Mobile search open/close
@@ -1075,6 +1485,26 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-delete')?.addEventListener('click', deleteCurrent);
     document.getElementById('btn-add-preview')?.addEventListener('click', addCurrentPreview);
 
+    // Assistant ("Le Vendeur") event bindings
+    btnOpenAssistant?.addEventListener('click', openAssistantModal);
+    btnAssistantClose?.addEventListener('click', () => closeAssistantModal(true));
+    assistantModal?.addEventListener('click', (e) => {
+        if (e.target === assistantModal) closeAssistantModal(true);
+    });
+    btnAssistantRestart?.addEventListener('click', startAssistantSession);
+    btnAcceptPick?.addEventListener('click', acceptCurrentPick);
+    btnPassPick?.addEventListener('click', passCurrentPick);
+    assistantInputForm?.addEventListener('submit', handleUserTextSubmit);
+    assistantUserInput?.addEventListener('input', updateCharCount);
+
+    btnTicketOpenDetails?.addEventListener('click', () => {
+        const idToOpen = assistantState.tonightPick?.id || assistantState.currentMovie?.id;
+        closeAssistantModal(true);
+        if (idToOpen) openModal(idToOpen);
+    });
+    btnTicketRestart?.addEventListener('click', startAssistantSession);
+    btnTicketClose?.addEventListener('click', () => closeAssistantModal(true));
+
     // Close search dropdown on click outside
     document.addEventListener('click', (e) => {
         if (searchInput && resultsBox && !searchInput.contains(e.target) && !resultsBox.contains(e.target)) {
@@ -1099,6 +1529,8 @@ window.appUi = {
     getSearchInput: () => searchInput,
     openSearchAndFocus,
     closeModal,
+    openAssistant: openAssistantModal,
+    closeAssistant: closeAssistantModal,
     showToast,
     applyFilter,
     resetAll,

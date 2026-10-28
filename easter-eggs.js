@@ -185,6 +185,7 @@
 
         if (e.key === 'Escape') {
             (window.appUi?.closeModal || window.closeModal)?.(null, true);
+            (window.appUi?.closeAssistant)?.(true);
             const randPanel = document.getElementById('randomizer-panel');
             if (randPanel) randPanel.classList.remove('open');
         }
