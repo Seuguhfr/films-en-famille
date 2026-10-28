@@ -9,11 +9,18 @@ export async function onRequest(context) {
   // 2. Validate Gemini API Key
   if (!env.GEMINI_API_KEY) {
     return Response.json({
-      error: "Clé GEMINI_API_KEY non configurée dans Cloudflare Pages."
+      error: "Clé GEMINI_API_KEY non configurée dans Cloudflare Pages.",
+      _debug: {
+        reasoning: null,
+        usedFallback: true,
+        error: "Missing GEMINI_API_KEY environment variable in Cloudflare Pages",
+        model: null
+      }
     }, { status: 500 });
   }
 
-  const model = env.GEMINI_MODEL || "gemini-2.5-flash";
+  // Default to gemini-1.5-flash which is the standard production model in Google Generative AI API
+  const requestedModel = env.GEMINI_MODEL || "gemini-1.5-flash";
 
   // 3. Helper Functions
   function getGenresString(genresRaw) {
@@ -59,6 +66,68 @@ export async function onRequest(context) {
     return synopsis || "Synopsis non disponible.";
   }
 
+  // Unified Gemini API Caller with Model Fallback
+  async function callGeminiApi({ systemPrompt, contents, responseSchema, apiKey, targetModel }) {
+    const modelsToTry = [
+      targetModel,
+      "gemini-1.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash-8b",
+      "gemini-1.5-pro",
+      "gemini-2.5-flash"
+    ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
+
+    let lastError = null;
+    let successfulModel = null;
+    let result = null;
+
+    for (const mod of modelsToTry) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${apiKey}`;
+        const payload = {
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema
+          }
+        };
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          lastError = `[${mod}] HTTP ${res.status}: ${errText}`;
+          console.warn(`Gemini call failed with model ${mod}:`, lastError);
+          continue;
+        }
+
+        const data = await res.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) {
+          const finishReason = data.candidates?.[0]?.finishReason || "UNKNOWN";
+          lastError = `[${mod}] Empty response (finishReason: ${finishReason})`;
+          console.warn(`Gemini empty candidate with model ${mod}:`, lastError);
+          continue;
+        }
+
+        const parsed = JSON.parse(rawText);
+        successfulModel = mod;
+        result = parsed;
+        break;
+      } catch (e) {
+        lastError = `[${mod}] Exception: ${e.message}`;
+        console.warn(`Gemini exception with model ${mod}:`, lastError);
+      }
+    }
+
+    return { result, model: successfulModel, error: result ? null : lastError };
+  }
+
   try {
     const body = await request.json();
     const {
@@ -75,7 +144,6 @@ export async function onRequest(context) {
 
     let allUnwatched = rawUnwatched || [];
     if (allUnwatched.length === 0) {
-      // Fallback if all movies are watched: use all movies
       const { results: allMovies } = await env.DB.prepare(
         "SELECT * FROM movies"
       ).all();
@@ -83,10 +151,11 @@ export async function onRequest(context) {
     }
 
     if (allUnwatched.length === 0) {
-      return Response.json({ error: "Aucun film disponible dans la base." }, { status: 404 });
+      return Response.json({
+        error: "Aucun film disponible dans la base.",
+        _debug: { reasoning: null, usedFallback: true, error: "No movies found in D1", model: null }
+      }, { status: 404 });
     }
-
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
 
     // ==========================================
     // TURN 1: Code-Driven Random Selection
@@ -113,55 +182,41 @@ Titre : ${title} (${year})
 Genres : ${genres} | Durée : ${runtime}m | Note : ${rating}
 Synopsis : ${synopsis}`;
 
-      const payload = {
-        systemInstruction: {
-          parts: [{ text: turn1SystemPrompt }]
+      const turn1Schema = {
+        type: "OBJECT",
+        properties: {
+          message: { type: "STRING" }
         },
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: "Présente-moi ce film." }]
-          }
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              message: { type: "STRING" }
-            },
-            required: ["message"]
-          }
-        }
+        required: ["message"]
       };
 
-      const geminiRes = await fetch(geminiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+      const { result, model: usedModel, error: geminiError } = await callGeminiApi({
+        systemPrompt: turn1SystemPrompt,
+        contents: [{ role: "user", parts: [{ text: "Présente-moi ce film." }] }],
+        responseSchema: turn1Schema,
+        apiKey: env.GEMINI_API_KEY,
+        targetModel: requestedModel
       });
 
-      if (!geminiRes.ok) {
-        const errText = await geminiRes.text();
-        console.error("Gemini Turn 1 error:", errText);
-        return Response.json({
-          movie: { ...movie, overview: synopsis },
-          message: `Ce soir, je te propose ${title} (${year}) ! Un film ${genres} de ${runtime} minutes qui saura parfaitement animer ta soirée.`
-        });
-      }
+      let finalMessage = "";
+      let usedFallback = false;
 
-      const geminiData = await geminiRes.json();
-      const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-      let parsedMessage = "";
-      try {
-        parsedMessage = JSON.parse(rawText).message;
-      } catch (e) {
-        parsedMessage = `Regarde ce que j'ai sorti des rayons : ${title} ! Une vraie valeur sûre pour passer un super moment ce soir.`;
+      if (result && result.message) {
+        finalMessage = result.message;
+      } else {
+        usedFallback = true;
+        finalMessage = `Ce soir, je te propose ${title} (${year}) ! Un film ${genres} de ${runtime} minutes qui saura parfaitement animer ta soirée.`;
       }
 
       return Response.json({
         movie: { ...movie, overview: synopsis },
-        message: parsedMessage
+        message: finalMessage,
+        _debug: {
+          reasoning: null,
+          usedFallback,
+          error: geminiError,
+          model: usedModel || requestedModel
+        }
       });
     }
 
@@ -171,7 +226,6 @@ Synopsis : ${synopsis}`;
     const rejectedSet = new Set((rejectedIds || []).map(Number));
     let available = allUnwatched.filter(m => !rejectedSet.has(Number(m.id)));
     if (available.length === 0) {
-      // If every unwatched movie was rejected in this session, reset available pool
       available = allUnwatched;
     }
 
@@ -180,7 +234,7 @@ Synopsis : ${synopsis}`;
 
     // Wildcard Tagging [PEPITE] on 5-10 movies
     const pepiteCount = Math.min(
-      Math.floor(Math.random() * 6) + 5, // 5 to 10
+      Math.floor(Math.random() * 6) + 5,
       shuffled.length
     );
     const pepiteIndices = new Set();
@@ -220,7 +274,6 @@ ${catalogueLines}`;
     // Format History Turns
     const contents = [];
 
-    // Ensure we start with a user turn if history doesn't
     if (history.length === 0 || history[0].role !== "user") {
       contents.push({ role: "user", parts: [{ text: "Présente-moi un premier film." }] });
     }
@@ -233,7 +286,6 @@ ${catalogueLines}`;
       });
     }
 
-    // Append Current User Action
     let currentActionText = "";
     if (userInput === "PASS" || userInput === "[ACTION: PASS]") {
       currentActionText = "[ACTION: PASS]";
@@ -262,36 +314,20 @@ ${catalogueLines}`;
       required: ["internal_reasoning", "movie_id", "message"]
     };
 
-    async function executeGeminiCall(contentsPayload) {
-      const resp = await fetch(geminiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: turn2SystemPrompt }] },
-          contents: contentsPayload,
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: turn2Schema
-          }
-        })
-      });
-      if (!resp.ok) {
-        const errText = await resp.text();
-        throw new Error(`Gemini error ${resp.status}: ${errText}`);
-      }
-      const data = await resp.json();
-      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!rawText) throw new Error("Empty candidate response");
-      return JSON.parse(rawText);
-    }
+    let { result: parsed, model: usedModel, error: geminiError } = await callGeminiApi({
+      systemPrompt: turn2SystemPrompt,
+      contents,
+      responseSchema: turn2Schema,
+      apiKey: env.GEMINI_API_KEY,
+      targetModel: requestedModel
+    });
 
     let chosenMovie = null;
     let chosenMessage = "";
-    let reasoning = "";
+    let reasoning = parsed?.internal_reasoning || "";
+    let usedFallback = false;
 
-    try {
-      const parsed = await executeGeminiCall(contents);
-      reasoning = parsed.internal_reasoning || "";
+    if (parsed) {
       const targetId = Number(parsed.movie_id);
       chosenMovie = available.find(m => Number(m.id) === targetId);
       chosenMessage = parsed.message || "";
@@ -304,24 +340,30 @@ ${catalogueLines}`;
           { role: "model", parts: [{ text: JSON.stringify(parsed) }] },
           { role: "user", parts: [{ text: "Erreur : cet ID n'est pas dans [CATALOGUE DISPONIBLE]. Choisis uniquement un ID valide de la liste." }] }
         ];
-        const retryParsed = await executeGeminiCall(retryContents);
-        reasoning = retryParsed.internal_reasoning || reasoning;
-        const retryId = Number(retryParsed.movie_id);
-        chosenMovie = available.find(m => Number(m.id) === retryId);
-        if (retryParsed.message) chosenMessage = retryParsed.message;
+        const retryCall = await callGeminiApi({
+          systemPrompt: turn2SystemPrompt,
+          contents: retryContents,
+          responseSchema: turn2Schema,
+          apiKey: env.GEMINI_API_KEY,
+          targetModel: usedModel || requestedModel
+        });
+        if (retryCall.result) {
+          const retryId = Number(retryCall.result.movie_id);
+          chosenMovie = available.find(m => Number(m.id) === retryId);
+          if (retryCall.result.message) chosenMessage = retryCall.result.message;
+          if (retryCall.result.internal_reasoning) reasoning = retryCall.result.internal_reasoning;
+        }
       }
-    } catch (apiErr) {
-      console.error("Gemini Turn 2 call failed:", apiErr.message);
     }
 
-    // Fallback if still invalid
+    // Fallback if still invalid or error
     if (!chosenMovie) {
+      usedFallback = true;
       console.warn("Fallback to random selection from available pool.");
       chosenMovie = available[Math.floor(Math.random() * available.length)];
       chosenMessage = chosenMessage || "J'ai fouillé dans mes rayons et je te sors cette pépite : elle change de registre et mérite vraiment le coup d'œil ce soir !";
     }
 
-    // Strip internal_reasoning from response, log on server
     if (reasoning) {
       console.log("[Le Vendeur Reasoning]", reasoning);
     }
@@ -329,11 +371,25 @@ ${catalogueLines}`;
     const synopsis = await fetchSynopsis(chosenMovie, env);
     return Response.json({
       movie: { ...chosenMovie, overview: synopsis },
-      message: chosenMessage
+      message: chosenMessage,
+      _debug: {
+        reasoning: reasoning || null,
+        usedFallback,
+        error: geminiError,
+        model: usedModel || requestedModel
+      }
     });
 
   } catch (err) {
     console.error("Assistant API Error:", err);
-    return Response.json({ error: err.message }, { status: 500 });
+    return Response.json({
+      error: err.message,
+      _debug: {
+        reasoning: null,
+        usedFallback: true,
+        error: `Handler exception: ${err.message}`,
+        model: requestedModel
+      }
+    }, { status: 500 });
   }
 }

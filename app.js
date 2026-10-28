@@ -1174,6 +1174,9 @@ async function fetchAssistantTurn(payload) {
         }
 
         const data = await res.json();
+        if (data._debug) {
+            console.log("🧠 Vendeur Debug:", data._debug);
+        }
         if (!data.movie) {
             throw new Error(data.error || "Aucun film n'a été retourné");
         }
