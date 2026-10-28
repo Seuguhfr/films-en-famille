@@ -19,8 +19,8 @@ export async function onRequest(context) {
     }, { status: 500 });
   }
 
-  // Default to gemini-1.5-flash which is the standard production model in Google Generative AI API
-  const requestedModel = env.GEMINI_MODEL || "gemini-1.5-flash";
+  // Default to gemini-3.8-flash which is the modern active model recommended by Google
+  const requestedModel = env.GEMINI_MODEL || "gemini-3.8-flash";
 
   // 3. Helper Functions
   function getGenresString(genresRaw) {
@@ -71,12 +71,7 @@ export async function onRequest(context) {
     const modelsToTry = [
       targetModel,
       "gemini-3.8-flash",
-      "gemini-2.5-flash",
-      "gemini-2.0-flash-exp",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-flash-8b",
-      "gemini-1.5-pro"
+      "gemini-1.5-flash"
     ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
 
     const errors = [];
