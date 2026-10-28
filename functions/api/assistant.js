@@ -66,14 +66,14 @@ export async function onRequest(context) {
     return synopsis || "Synopsis non disponible.";
   }
 
-  // Unified Gemini API Caller with Model Fallback and 503 Retry
+  // Unified Gemini API Caller with Fast Model Fallback
   async function callGeminiApi({ systemPrompt, contents, responseSchema, apiKey, targetModel }) {
     const modelsToTry = [
       targetModel,
       "gemini-3.5-flash",
-      "gemini-flash-latest",
-      "gemini-3.7-flash",
-      "gemini-3.8-flash"
+      "gemini-3.5-flash-lite",
+      "gemini-3.6-flash",
+      "gemini-flash-latest"
     ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
 
     const errors = [];
@@ -81,57 +81,48 @@ export async function onRequest(context) {
     let result = null;
 
     for (const mod of modelsToTry) {
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${apiKey}`;
-          const payload = {
-            systemInstruction: { parts: [{ text: systemPrompt }] },
-            contents,
-            generationConfig: {
-              responseMimeType: "application/json",
-              responseSchema
-            }
-          };
-
-          const res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-            signal: AbortSignal.timeout(7000)
-          });
-
-          if (!res.ok) {
-            const errText = await res.text();
-            const errInfo = `[${mod} (att ${attempt})] HTTP ${res.status}: ${errText.trim()}`;
-            errors.push(errInfo);
-            if ((res.status === 503 || res.status === 429) && attempt === 1) {
-              await new Promise(r => setTimeout(r, 600));
-              continue;
-            }
-            break;
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${apiKey}`;
+        const payload = {
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema
           }
+        };
 
-          const data = await res.json();
-          const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!rawText) {
-            const finishReason = data.candidates?.[0]?.finishReason || "UNKNOWN";
-            const errInfo = `[${mod}] Empty candidate (finishReason: ${finishReason})`;
-            errors.push(errInfo);
-            break;
-          }
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(12000)
+        });
 
-          const parsed = JSON.parse(rawText);
-          successfulModel = mod;
-          result = parsed;
-          break;
-        } catch (e) {
-          const errInfo = `[${mod}] Exception: ${e.message}`;
+        if (!res.ok) {
+          const errText = await res.text();
+          const errInfo = `[${mod}] HTTP ${res.status}: ${errText.trim()}`;
           errors.push(errInfo);
-          break;
+          continue;
         }
-      }
 
-      if (result) break;
+        const data = await res.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) {
+          const finishReason = data.candidates?.[0]?.finishReason || "UNKNOWN";
+          const errInfo = `[${mod}] Empty candidate (finishReason: ${finishReason})`;
+          errors.push(errInfo);
+          continue;
+        }
+
+        const parsed = JSON.parse(rawText);
+        successfulModel = mod;
+        result = parsed;
+        break;
+      } catch (e) {
+        const errInfo = `[${mod}] Exception: ${e.message}`;
+        errors.push(errInfo);
+      }
     }
 
     let availableModels = [];
