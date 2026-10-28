@@ -19,8 +19,8 @@ export async function onRequest(context) {
     }, { status: 500 });
   }
 
-  // Default to gemini-3.8-flash which is the modern active model recommended by Google
-  const requestedModel = env.GEMINI_MODEL || "gemini-3.8-flash";
+  // Default to gemini-3.5-flash which is responsive and stable
+  const requestedModel = env.GEMINI_MODEL || "gemini-3.5-flash";
 
   // 3. Helper Functions
   function getGenresString(genresRaw) {
@@ -70,10 +70,10 @@ export async function onRequest(context) {
   async function callGeminiApi({ systemPrompt, contents, responseSchema, apiKey, targetModel }) {
     const modelsToTry = [
       targetModel,
-      "gemini-3.8-flash",
-      "gemini-3.7-flash",
       "gemini-3.5-flash",
-      "gemini-flash-latest"
+      "gemini-flash-latest",
+      "gemini-3.7-flash",
+      "gemini-3.8-flash"
     ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
 
     const errors = [];
@@ -96,7 +96,8 @@ export async function onRequest(context) {
           const res = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(7000)
           });
 
           if (!res.ok) {
