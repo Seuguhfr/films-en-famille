@@ -12,7 +12,8 @@ export async function onRequest(context) {
     "ALTER TABLE movies ADD COLUMN director TEXT",
     "ALTER TABLE movies ADD COLUMN genres TEXT",
     "ALTER TABLE movies ADD COLUMN imdb_id TEXT",
-    "ALTER TABLE movies ADD COLUMN title TEXT"
+    "ALTER TABLE movies ADD COLUMN title TEXT",
+    "ALTER TABLE movies ADD COLUMN overview TEXT"
   ];
 
   const schemaLogs = [];
@@ -26,13 +27,13 @@ export async function onRequest(context) {
     }
   }
 
-  // 2. Data Migration: Enrich movies that lack poster_path or director
+  // 2. Data Migration: Enrich movies that lack poster_path, director, or overview
   let dataLogs = [];
   let updatedCount = 0;
 
   try {
     const { results } = await env.DB.prepare(
-      "SELECT id, tmdb_id, title FROM movies WHERE poster_path IS NULL OR director IS NULL OR genres IS NULL"
+      "SELECT id, tmdb_id, title FROM movies WHERE poster_path IS NULL OR director IS NULL OR genres IS NULL OR overview IS NULL LIMIT 40"
     ).all();
 
     if (results && results.length > 0) {
@@ -51,6 +52,7 @@ export async function onRequest(context) {
             const release_date = data.release_date || null;
             const vote_average = data.vote_average || 0;
             const runtime = data.runtime || 0;
+            const overview = data.overview || "";
 
             let director = "Inconnu";
             const dirObj = data.credits?.crew?.find(p => p.job === "Director");
@@ -59,10 +61,10 @@ export async function onRequest(context) {
             const genres = JSON.stringify(data.genres || []);
 
             await env.DB.prepare(
-              `UPDATE movies SET title = ?, original_title = ?, poster_path = ?, backdrop_path = ?, release_date = ?, vote_average = ?, runtime = ?, director = ?, genres = ?, imdb_id = ? WHERE id = ?`
+              `UPDATE movies SET title = ?, original_title = ?, poster_path = ?, backdrop_path = ?, release_date = ?, vote_average = ?, runtime = ?, director = ?, genres = ?, imdb_id = ?, overview = ? WHERE id = ?`
             ).bind(
               title, original_title, poster_path, backdrop_path,
-              release_date, vote_average, runtime, director, genres, imdb_id, movie.id
+              release_date, vote_average, runtime, director, genres, imdb_id, overview, movie.id
             ).run();
 
             updatedCount++;

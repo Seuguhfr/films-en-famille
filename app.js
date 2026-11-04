@@ -146,6 +146,10 @@ async function loadMovies() {
 
         // If item already has rich data from D1, use it
         if (item.title && item.director && item.poster_path && genresArr.length > 0) {
+            const cached = Store.getCache(item.tmdb_id);
+            if (!item.overview && !cached?.overview) {
+                needsMigration = true;
+            }
             return {
                 id: item.id,
                 tmdb_id: item.tmdb_id,
@@ -154,7 +158,7 @@ async function loadMovies() {
                 original_title: item.original_title || '',
                 poster_path: item.poster_path,
                 backdrop_path: item.backdrop_path,
-                overview: item.overview || '',
+                overview: item.overview || cached?.overview || '',
                 release_date: item.release_date,
                 vote_average: Number(item.vote_average) || 0,
                 runtime: Number(item.runtime) || 0,
@@ -674,7 +678,42 @@ function openModal(id) {
     state.isPreviewMode = false;
     state.previewMovie = null;
 
+    // Check if assistant pitched this movie or if cache has overview
+    if (!m.overview || m.overview === 'Pas de description.') {
+        if (assistantState.currentMovie && Number(assistantState.currentMovie.id) === Number(m.id) && assistantState.currentMovie.overview) {
+            m.overview = assistantState.currentMovie.overview;
+        } else {
+            const cached = Store.getCache(m.tmdb_id);
+            if (cached && cached.overview) {
+                m.overview = cached.overview;
+            }
+        }
+    }
+
     populateModalData(m);
+
+    // If overview is still missing, fetch dynamically from TMDB
+    if (!m.overview || m.overview === 'Pas de description.') {
+        const synopsisEl = document.getElementById('m-synopsis');
+        if (synopsisEl) synopsisEl.textContent = 'Chargement du résumé...';
+
+        fetchTMDB(`movie/${m.tmdb_id}`).then(data => {
+            if (data && data.overview) {
+                m.overview = data.overview;
+                const existingCache = Store.getCache(m.tmdb_id) || {};
+                Store.setCache(m.tmdb_id, { ...existingCache, overview: data.overview });
+                if (state.currentOpenId === id && synopsisEl) {
+                    synopsisEl.textContent = data.overview;
+                }
+            } else if (state.currentOpenId === id && synopsisEl) {
+                synopsisEl.textContent = 'Pas de description disponible.';
+            }
+        }).catch(() => {
+            if (state.currentOpenId === id && synopsisEl) {
+                synopsisEl.textContent = 'Pas de description disponible.';
+            }
+        });
+    }
 
     // Show Library actions, hide preview actions
     document.getElementById('library-actions')?.classList.remove('hidden');
@@ -1111,6 +1150,10 @@ function renderPitchTurn(movie, message) {
     }
 
     div.querySelector('.amc-poster-wrap')?.addEventListener('click', () => {
+        const localMovie = state.allMovies.find(x => x.id === movie.id);
+        if (localMovie && !localMovie.overview && movie.overview) {
+            localMovie.overview = movie.overview;
+        }
         openModal(movie.id);
     });
 
@@ -1317,6 +1360,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnTicketOpenDetails?.addEventListener('click', () => {
         const idToOpen = assistantState.tonightPick?.id || assistantState.currentMovie?.id;
+        const localMovie = state.allMovies.find(x => x.id === idToOpen);
+        if (localMovie && !localMovie.overview && (assistantState.tonightPick?.overview || assistantState.currentMovie?.overview)) {
+            localMovie.overview = assistantState.tonightPick?.overview || assistantState.currentMovie?.overview;
+        }
         closeAssistantModal(true);
         if (idToOpen) openModal(idToOpen);
     });

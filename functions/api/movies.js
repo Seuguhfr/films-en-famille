@@ -42,6 +42,7 @@ export async function onRequest(context) {
       let runtime = 0;
       let director = "Inconnu";
       let genres = "[]";
+      let overview = "";
 
       try {
         const tmdbUrl = `https://api.themoviedb.org/3/movie/${tmdb_id}?api_key=${env.TMDB_KEY}&language=fr-FR&append_to_response=credits,images&include_image_language=fr,en,null`;
@@ -56,6 +57,7 @@ export async function onRequest(context) {
           release_date = data.release_date || null;
           vote_average = data.vote_average || 0;
           runtime = data.runtime || 0;
+          overview = data.overview || "";
 
           const dirObj = data.credits?.crew?.find(p => p.job === "Director");
           if (dirObj) director = dirObj.name;
@@ -68,31 +70,44 @@ export async function onRequest(context) {
 
       let newId;
       try {
-        // Attempt full insert with all rich columns
+        // Attempt full insert with all rich columns including overview
         const result = await env.DB.prepare(
           `INSERT INTO movies (
             tmdb_id, watched, title, original_title, poster_path, backdrop_path, 
-            release_date, vote_average, runtime, director, genres, imdb_id
-          ) VALUES (?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            release_date, vote_average, runtime, director, genres, imdb_id, overview
+          ) VALUES (?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           tmdb_id, title, original_title, poster_path, backdrop_path,
-          release_date, vote_average, runtime, director, genres, imdb_id
+          release_date, vote_average, runtime, director, genres, imdb_id, overview
         ).run();
 
         newId = result.meta?.last_row_id || result.lastRowId || result.id || Date.now();
       } catch (insertErr) {
-        // Fallback for tables that haven't added the new columns yet
-        console.warn("Full insert failed, trying minimal columns:", insertErr.message);
+        // Fallback for tables that haven't added the overview column yet
+        console.warn("Full insert failed, trying columns without overview:", insertErr.message);
         try {
           const result = await env.DB.prepare(
-            "INSERT INTO movies (tmdb_id, watched, title, imdb_id) VALUES (?, 0, ?, ?)"
-          ).bind(tmdb_id, title, imdb_id).run();
+            `INSERT INTO movies (
+              tmdb_id, watched, title, original_title, poster_path, backdrop_path, 
+              release_date, vote_average, runtime, director, genres, imdb_id
+            ) VALUES (?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(
+            tmdb_id, title, original_title, poster_path, backdrop_path,
+            release_date, vote_average, runtime, director, genres, imdb_id
+          ).run();
           newId = result.meta?.last_row_id || result.lastRowId || result.id || Date.now();
-        } catch (minimalErr) {
-          const result = await env.DB.prepare(
-            "INSERT INTO movies (tmdb_id, watched) VALUES (?, 0)"
-          ).bind(tmdb_id).run();
-          newId = result.meta?.last_row_id || result.lastRowId || result.id || Date.now();
+        } catch (midErr) {
+          try {
+            const result = await env.DB.prepare(
+              "INSERT INTO movies (tmdb_id, watched, title, imdb_id) VALUES (?, 0, ?, ?)"
+            ).bind(tmdb_id, title, imdb_id).run();
+            newId = result.meta?.last_row_id || result.lastRowId || result.id || Date.now();
+          } catch (minimalErr) {
+            const result = await env.DB.prepare(
+              "INSERT INTO movies (tmdb_id, watched) VALUES (?, 0)"
+            ).bind(tmdb_id).run();
+            newId = result.meta?.last_row_id || result.lastRowId || result.id || Date.now();
+          }
         }
       }
 
@@ -109,7 +124,8 @@ export async function onRequest(context) {
         runtime,
         director,
         genres,
-        imdb_id
+        imdb_id,
+        overview
       }]);
     } catch (err) {
       return new Response(JSON.stringify({ error: err.message }), { status: 500 });
