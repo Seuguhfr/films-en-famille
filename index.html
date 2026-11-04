@@ -40,12 +40,6 @@
                 </h1>
 
                 <div class="header-right">
-                    <button id="btn-open-assistant" class="btn-assistant-header" aria-label="Conseille-moi un film">
-                        <i data-lucide="sparkles" size="16" aria-hidden="true"></i>
-                        <span class="btn-assistant-text">Conseille-moi un film</span>
-                        <span class="btn-assistant-emoji">🎬</span>
-                    </button>
-
                     <button id="mobile-search-trigger" class="mobile-search-trigger" aria-label="Ouvrir la recherche">
                         <i data-lucide="search" size="18" aria-hidden="true"></i>
                     </button>
@@ -123,49 +117,11 @@
         </main>
     </div>
 
-    <!-- ADVANCED RANDOMIZER PANEL -->
-    <div id="randomizer-panel" class="randomizer-panel" role="dialog" aria-modal="true" aria-label="Choisir un film au hasard">
-        <div class="rand-header">
-            <h3>Que regardons-nous ?</h3>
-            <button id="close-rand-btn" class="circle-btn" style="width:28px; height:28px;" aria-label="Fermer">
-                <i data-lucide="x" size="14" aria-hidden="true"></i>
-            </button>
-        </div>
-
-        <div class="rand-section" id="rand-duration-section">
-            <div class="rand-label" id="rand-duration-label">Durée</div>
-            <div class="chip-group" id="rand-duration-group" role="radiogroup" aria-labelledby="rand-duration-label">
-                <button class="chip active" data-val="any" role="radio" aria-checked="true">Peu importe</button>
-                <button class="chip" data-val="short" role="radio" aria-checked="false">&lt; 1h30</button>
-                <button class="chip" data-val="medium" role="radio" aria-checked="false">Classique (1h30-2h15)</button>
-                <button class="chip" data-val="long" role="radio" aria-checked="false">&gt; 2h15</button>
-            </div>
-        </div>
-
-        <div class="rand-section">
-            <div class="rand-label" id="rand-rating-label">Ambiance (Note)</div>
-            <div class="chip-group" id="rand-rating-group" role="radiogroup" aria-labelledby="rand-rating-label">
-                <button class="chip active" data-val="any" role="radio" aria-checked="true">Peu importe</button>
-                <button class="chip" data-val="good" role="radio" aria-checked="false">Valeur sûre (8+)</button>
-                <button class="chip" data-val="bad" role="radio" aria-checked="false">Plaisir coupable (&lt; 6)</button>
-            </div>
-        </div>
-
-        <div class="rand-section">
-            <div class="rand-label">Genre</div>
-            <div class="chip-group scrollable" id="rand-genre-group" role="radiogroup" aria-label="Filtrer par genre">
-                <!-- Dynamically populated by JS -->
-            </div>
-        </div>
-
-        <button id="btn-roll-dice" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
-            <i data-lucide="dices" aria-hidden="true"></i> Lancer les dés
-        </button>
-    </div>
-
-    <!-- FAB RANDOM -->
-    <button id="fab-random" class="fab-random" aria-label="Choisir au hasard">
-        <i data-lucide="dices" aria-hidden="true"></i>
+    <!-- FAB LE VENDEUR -->
+    <button id="fab-vendeur" class="fab-vendeur" aria-label="Conseille-moi un film (Le Vendeur)">
+        <span class="fab-vendeur-icon">📼</span>
+        <span class="fab-vendeur-label">Le Vendeur</span>
+        <span class="fab-vendeur-sparkle">✨</span>
     </button>
 
     <!-- TOAST -->
@@ -285,11 +241,13 @@
                     <div class="assistant-quick-actions" id="assistant-quick-actions">
                         <button id="btn-accept-pick" class="btn btn-accept" disabled>
                             <i data-lucide="check-circle-2" size="18"></i>
-                            <span>On regarde ça ce soir !</span>
+                            <span class="btn-label-full">On regarde ça ce soir !</span>
+                            <span class="btn-label-short">On regarde ça !</span>
                         </button>
                         <button id="btn-pass-pick" class="btn btn-pass" disabled>
                             <i data-lucide="shuffle" size="16"></i>
-                            <span>Juste un autre</span>
+                            <span class="btn-label-full">Juste un autre</span>
+                            <span class="btn-label-short">Autre film</span>
                         </button>
                     </div>
 
@@ -300,7 +258,7 @@
                                 type="text" 
                                 id="assistant-user-input" 
                                 class="assistant-input" 
-                                placeholder="Trop violent ? Pas d'humeur ? Dis-moi tout..."
+                                placeholder="Trop violent ? Pas d'humeur ? Dis-lui..."
                                 maxlength="100"
                                 autocomplete="off"
                                 autocorrect="off"

@@ -32,7 +32,6 @@ const state = {
     alwaysShowTitles: Store.get('alwaysShowTitles', false),
     sortPref: Store.get('sortPref', 'default'),
     activeFilter: null,
-    randFilters: Store.get('randFilters', { duration: 'any', rating: 'any', genre: 'any' }),
 };
 
 // ─── DOM References ───────────────────────────────────────────────────────────
@@ -43,8 +42,7 @@ const modalOverlay = document.getElementById('modal');
 const sortSelect = document.getElementById('sort-select');
 const clearBtn = document.getElementById('clear-btn');
 const toast = document.getElementById('toast');
-const fabRandom = document.getElementById('fab-random');
-const randomizerPanel = document.getElementById('randomizer-panel');
+const fabVendeur = document.getElementById('fab-vendeur');
 
 // ─── Utility Functions ────────────────────────────────────────────────────────
 const formatRuntime = (mins) => {
@@ -825,192 +823,6 @@ async function addCurrentPreview() {
     }
 }
 
-// ─── Advanced Randomizer ──────────────────────────────────────────────────────
-function toggleRandomizerPanel(e) {
-    if (e) e.stopPropagation();
-
-    // Dice roll animation
-    const diceIcon = fabRandom?.querySelector('i');
-    if (diceIcon) {
-        diceIcon.classList.remove('rolling');
-        void diceIcon.offsetWidth; // Trigger reflow
-        diceIcon.classList.add('rolling');
-    }
-
-    if (!randomizerPanel) return;
-    if (randomizerPanel.classList.contains('open')) {
-        randomizerPanel.classList.remove('open');
-        return;
-    }
-
-    // Restore saved filters
-    const saved = Store.get('randFilters');
-    if (saved) Object.assign(state.randFilters, saved);
-
-    // Update Duration chips
-    document.querySelectorAll('#rand-duration-group .chip').forEach(c => {
-        c.classList.toggle('active', c.dataset.val === state.randFilters.duration);
-    });
-
-    // Update Rating chips
-    document.querySelectorAll('#rand-rating-group .chip').forEach(c => {
-        c.classList.toggle('active', c.dataset.val === state.randFilters.rating);
-    });
-
-    populateRandomGenres();
-    randomizerPanel.classList.add('open');
-}
-
-function populateRandomGenres() {
-    const pool = state.allMovies.filter(m => !m.watched);
-    const counts = {};
-    pool.forEach(m => m.genres?.forEach(g => {
-        counts[g.name] = (counts[g.name] || 0) + 1;
-    }));
-
-    const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
-    const group = document.getElementById('rand-genre-group');
-    if (!group) return;
-    group.innerHTML = '';
-
-    const buildChip = (label, val, isActive) => {
-        const btn = document.createElement('button');
-        btn.className = `chip ${isActive ? 'active' : ''}`;
-        btn.dataset.val = val;
-        btn.textContent = label;
-        btn.setAttribute('role', 'radio');
-        btn.setAttribute('aria-checked', isActive ? 'true' : 'false');
-        return btn;
-    };
-
-    group.appendChild(buildChip('Peu importe', 'any', state.randFilters.genre === 'any'));
-    top.forEach(([name]) => {
-        group.appendChild(buildChip(name, name, state.randFilters.genre === name));
-    });
-    group.appendChild(buildChip('Autre', 'other', state.randFilters.genre === 'other'));
-
-    group.querySelectorAll('.chip').forEach(btn => {
-        btn.addEventListener('click', () => {
-            group.querySelectorAll('.chip').forEach(c => {
-                c.classList.remove('active');
-                c.setAttribute('aria-checked', 'false');
-            });
-            btn.classList.add('active');
-            btn.setAttribute('aria-checked', 'true');
-            state.randFilters.genre = btn.dataset.val;
-            Store.set('randFilters', state.randFilters);
-        });
-    });
-}
-
-function executeRandomizer() {
-    let pool = state.allMovies.filter(m => !m.watched);
-
-    // Apply active view filter if any
-    if (state.activeFilter) {
-        if (state.activeFilter.type === 'genre') {
-            pool = pool.filter(m => m.genres?.some(g => g.name === state.activeFilter.value));
-        } else if (state.activeFilter.type === 'director') {
-            pool = pool.filter(m => m.director === state.activeFilter.value);
-        }
-    }
-
-    // Duration filter
-    if (state.randFilters.duration !== 'any') {
-        pool = pool.filter(m => {
-            const r = m.runtime || 0;
-            if (state.randFilters.duration === 'short') return r > 0 && r < 90;
-            if (state.randFilters.duration === 'medium') return r >= 90 && r <= 135;
-            if (state.randFilters.duration === 'long') return r > 135;
-            return true;
-        });
-    }
-
-    // Rating filter
-    if (state.randFilters.rating !== 'any') {
-        pool = pool.filter(m => {
-            const score = m.vote_average || 0;
-            if (state.randFilters.rating === 'good') return score >= 8.0;
-            if (state.randFilters.rating === 'bad') return score > 0 && score < 6.0;
-            return true;
-        });
-    }
-
-    // Genre filter
-    if (state.randFilters.genre !== 'any') {
-        pool = pool.filter(m => {
-            if (!m.genres?.length) return state.randFilters.genre === 'other';
-            const topGenreEls = document.querySelectorAll('#rand-genre-group .chip:not([data-val="any"]):not([data-val="other"])');
-            const topGenreNames = Array.from(topGenreEls).map(c => c.dataset.val);
-            const hasTop = m.genres.some(g => topGenreNames.includes(g.name));
-            if (state.randFilters.genre === 'other') return !hasTop;
-            return m.genres.some(g => g.name === state.randFilters.genre);
-        });
-    }
-
-    Store.set('randFilters', state.randFilters);
-
-    if (pool.length === 0) {
-        showToast('Aucun titre ne correspond, sois moins difficile !');
-        if (fabRandom) {
-            fabRandom.classList.add('fab-shake');
-            setTimeout(() => fabRandom.classList.remove('fab-shake'), 500);
-        }
-        return;
-    }
-
-    randomizerPanel?.classList.remove('open');
-    startShuffleAnimation(pool);
-}
-
-function startShuffleAnimation(pool) {
-    openModalOverlay();
-    const box = document.getElementById('modal-content-box');
-    if (!box) return;
-    box.classList.add('shuffling');
-
-    document.getElementById('library-actions')?.classList.add('hidden');
-    document.getElementById('preview-actions')?.classList.add('hidden');
-    const delBtn = document.getElementById('btn-delete');
-    if (delBtn) delBtn.style.display = 'none';
-
-    let steps = 0;
-    const interval = setInterval(() => {
-        const temp = pool[Math.floor(Math.random() * pool.length)];
-        const titleEl = document.getElementById('m-title');
-        const synopsisEl = document.getElementById('m-synopsis');
-        const genreEl = document.getElementById('m-genre');
-        const directorEl = document.getElementById('m-director');
-        const dateEl = document.getElementById('m-date');
-        const runtimeEl = document.getElementById('m-runtime');
-        const starsEl = document.getElementById('m-rating-stars');
-        const backdropEl = document.getElementById('m-backdrop');
-
-        if (titleEl) titleEl.textContent = temp.title;
-        if (synopsisEl) synopsisEl.textContent = 'Le destin choisit…';
-        if (genreEl) genreEl.textContent = '…';
-        if (directorEl) directorEl.textContent = '';
-        if (dateEl) dateEl.textContent = '-';
-        if (runtimeEl) runtimeEl.textContent = '-';
-        if (starsEl) starsEl.innerHTML = '';
-        if (backdropEl) {
-            backdropEl.src = temp.backdrop_path ? `https://image.tmdb.org/t/p/w780${temp.backdrop_path}` : IMG_FALLBACK;
-        }
-
-        steps++;
-        if (steps >= 24) {
-            clearInterval(interval);
-            box.classList.remove('shuffling');
-            const winner = pool[Math.floor(Math.random() * pool.length)];
-            openModal(winner.id);
-
-            box.style.transform = 'scale(1.02)';
-            setTimeout(() => (box.style.transform = 'scale(1)'), 200);
-            showToast("🎬 C'est parti !");
-        }
-    }, 80);
-}
-
 // ─── Assistant ("Le Vendeur") Implementation ──────────────────────────────────
 const assistantModal = document.getElementById('assistant-modal');
 const btnOpenAssistant = document.getElementById('btn-open-assistant');
@@ -1113,6 +925,18 @@ function scrollAssistantToBottom() {
     });
 }
 
+function scrollAssistantToNewTurn(element) {
+    if (!assistantScrollArea) return;
+    requestAnimationFrame(() => {
+        if (element) {
+            const targetTop = element.offsetTop - 12;
+            assistantScrollArea.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+        } else {
+            assistantScrollArea.scrollTo({ top: assistantScrollArea.scrollHeight, behavior: 'smooth' });
+        }
+    });
+}
+
 function updateCooldownUI(remaining) {
     if (remaining > 0) {
         assistantCooldownBar?.classList.remove('hidden');
@@ -1207,7 +1031,6 @@ async function fetchAssistantTurn(payload) {
     } finally {
         assistantState.isLoading = false;
         assistantLoading?.classList.add('hidden');
-        scrollAssistantToBottom();
     }
 }
 
@@ -1283,6 +1106,7 @@ function renderPitchTurn(movie, message) {
 
     assistantChatMessages.appendChild(div);
     if (window.lucide) window.lucide.createIcons();
+    scrollAssistantToNewTurn(div);
 }
 
 function renderUserBubble(text) {
@@ -1295,6 +1119,7 @@ function renderUserBubble(text) {
         </div>
     `;
     assistantChatMessages.appendChild(div);
+    scrollAssistantToBottom();
 }
 
 function renderErrorBubble(errorText) {
@@ -1448,39 +1273,6 @@ document.addEventListener('DOMContentLoaded', () => {
         applySort();
     });
 
-    // Randomizer buttons
-    fabRandom?.addEventListener('click', toggleRandomizerPanel);
-    document.getElementById('close-rand-btn')?.addEventListener('click', () => randomizerPanel?.classList.remove('open'));
-    document.getElementById('btn-roll-dice')?.addEventListener('click', executeRandomizer);
-
-    // Randomizer chip clicks for Duration
-    document.querySelectorAll('#rand-duration-group .chip').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('#rand-duration-group .chip').forEach(c => {
-                c.classList.remove('active');
-                c.setAttribute('aria-checked', 'false');
-            });
-            btn.classList.add('active');
-            btn.setAttribute('aria-checked', 'true');
-            state.randFilters.duration = btn.dataset.val;
-            Store.set('randFilters', state.randFilters);
-        });
-    });
-
-    // Randomizer chip clicks for Rating
-    document.querySelectorAll('#rand-rating-group .chip').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('#rand-rating-group .chip').forEach(c => {
-                c.classList.remove('active');
-                c.setAttribute('aria-checked', 'false');
-            });
-            btn.classList.add('active');
-            btn.setAttribute('aria-checked', 'true');
-            state.randFilters.rating = btn.dataset.val;
-            Store.set('randFilters', state.randFilters);
-        });
-    });
-
     // Modal action buttons
     document.getElementById('btn-modal-close')?.addEventListener('click', (e) => closeModal(e, true));
     modalOverlay?.addEventListener('click', (e) => closeModal(e, false));
@@ -1489,6 +1281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-add-preview')?.addEventListener('click', addCurrentPreview);
 
     // Assistant ("Le Vendeur") event bindings
+    fabVendeur?.addEventListener('click', openAssistantModal);
     btnOpenAssistant?.addEventListener('click', openAssistantModal);
     btnAssistantClose?.addEventListener('click', () => closeAssistantModal(true));
     assistantModal?.addEventListener('click', (e) => {
@@ -1512,9 +1305,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (e) => {
         if (searchInput && resultsBox && !searchInput.contains(e.target) && !resultsBox.contains(e.target)) {
             resultsBox.style.display = 'none';
-        }
-        if (randomizerPanel && fabRandom && !randomizerPanel.contains(e.target) && !fabRandom.contains(e.target)) {
-            randomizerPanel.classList.remove('open');
         }
     });
 
