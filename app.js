@@ -548,12 +548,24 @@ if (searchInput) {
 }
 
 // ─── Modal Implementation ─────────────────────────────────────────────────────
+function updateModalOpenClass() {
+    const isModalOpen = modalOverlay && modalOverlay.classList.contains('open');
+    const isAssistantOpen = assistantState && assistantState.isOpen;
+    if (isModalOpen || isAssistantOpen) {
+        document.documentElement.classList.add('modal-open');
+        document.body.classList.add('modal-open');
+    } else {
+        document.documentElement.classList.remove('modal-open');
+        document.body.classList.remove('modal-open');
+    }
+}
+
 function openModalOverlay() {
     if (!modalOverlay) return;
-    document.body.classList.add('modal-open');
     modalOverlay.style.display = 'flex';
     requestAnimationFrame(() => {
         modalOverlay.classList.add('open');
+        updateModalOpenClass();
         const scrollWrapper = document.getElementById('modal-scroll-wrapper');
         if (scrollWrapper) scrollWrapper.scrollTop = 0;
 
@@ -566,7 +578,7 @@ function closeModal(e, force = false) {
     if (!modalOverlay) return;
     if (force || (e && e.target === modalOverlay)) {
         modalOverlay.classList.remove('open');
-        document.body.classList.remove('modal-open');
+        updateModalOpenClass();
         setTimeout(() => {
             modalOverlay.style.display = 'none';
             stickyHeaderObserver.disconnect();
@@ -873,10 +885,10 @@ function escapeHtml(str) {
 function openAssistantModal() {
     if (!assistantModal) return;
     assistantState.isOpen = true;
-    document.body.classList.add('modal-open');
     assistantModal.style.display = 'flex';
     requestAnimationFrame(() => {
         assistantModal.classList.add('open');
+        updateModalOpenClass();
     });
 
     if (assistantState.isFirstTurn || !assistantState.currentMovie) {
@@ -888,7 +900,7 @@ function closeAssistantModal(force = false) {
     if (!assistantModal) return;
     assistantState.isOpen = false;
     assistantModal.classList.remove('open');
-    document.body.classList.remove('modal-open');
+    updateModalOpenClass();
     setTimeout(() => {
         assistantModal.style.display = 'none';
     }, 300);
@@ -1038,7 +1050,7 @@ function renderPitchTurn(movie, message) {
     if (!assistantChatMessages) return;
 
     const posterUrl = movie.poster_path 
-        ? `https://image.tmdb.org/t/p/w185${movie.poster_path}` 
+        ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` 
         : IMG_FALLBACK;
     const year = (movie.release_date || '').split('-')[0] || 'Inconnue';
     const rating = Number(movie.vote_average) ? Number(movie.vote_average).toFixed(1) : '-';
@@ -1046,7 +1058,7 @@ function renderPitchTurn(movie, message) {
     const genres = Array.isArray(movie.genres) 
         ? movie.genres.map(g => (typeof g === 'string' ? g : (g.name || ''))).filter(Boolean)
         : [];
-    const genresHtml = genres.slice(0, 3).map(g => `<span class="amc-genre-tag">${escapeHtml(g)}</span>`).join('');
+    const genresHtml = genres.slice(0, 4).map(g => `<span class="amc-genre-tag">${escapeHtml(g)}</span>`).join('');
     const synopsis = movie.overview || 'Synopsis non disponible.';
 
     const div = document.createElement('div');
@@ -1284,6 +1296,18 @@ document.addEventListener('DOMContentLoaded', () => {
     btnAssistantClose?.addEventListener('click', () => closeAssistantModal(true));
     assistantModal?.addEventListener('click', (e) => {
         if (e.target === assistantModal) closeAssistantModal(true);
+    });
+
+    // Prevent background scrolling when dragging directly on the backdrop overlays
+    ['modal', 'assistant-modal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('touchmove', (e) => {
+                if (e.target === el) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        }
     });
     btnAssistantRestart?.addEventListener('click', startAssistantSession);
     btnAcceptPick?.addEventListener('click', acceptCurrentPick);
