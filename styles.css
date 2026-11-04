@@ -382,78 +382,50 @@ body.matrix-mode .card-title { color: var(--accent); text-shadow: 0 0 5px var(--
     position: fixed;
     bottom: 28px;
     right: 28px;
-    background: linear-gradient(135deg, #18181c, #1f1f26);
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: var(--accent);
     color: white;
-    font-family: var(--font);
-    font-weight: 700;
-    font-size: 0.95rem;
-    letter-spacing: -0.01em;
-    padding: 10px 18px 10px 14px;
-    border-radius: 9999px;
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
+    width: 58px;
+    height: 58px;
+    border-radius: 20px;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 10px 28px var(--accent-glow);
+    border: none;
     cursor: pointer;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(244, 63, 94, 0.18);
-    transition: all 0.28s var(--ease-spring);
     z-index: 90;
+    transition: transform 0.28s var(--ease-spring), box-shadow 0.28s;
     outline: none;
     -webkit-tap-highlight-color: transparent;
 }
 
-.fab-vendeur::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: 9999px;
-    padding: 1px;
-    background: linear-gradient(135deg, rgba(244, 63, 94, 0.6), rgba(168, 85, 247, 0.4), transparent 70%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-}
-
 .fab-vendeur:hover {
-    transform: translateY(-3px) scale(1.03);
-    border-color: rgba(244, 63, 94, 0.5);
-    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6), 0 0 24px rgba(244, 63, 94, 0.35);
+    transform: translateY(-3px) scale(1.04);
+    box-shadow: 0 14px 34px var(--accent-glow);
 }
 
 .fab-vendeur:active {
-    transform: scale(0.95);
+    transform: scale(0.93);
 }
 
-.fab-vendeur-icon {
-    font-size: 1.25rem;
-    line-height: 1;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+.fab-vendeur i {
+    color: white;
+    transition: transform 0.25s ease;
 }
 
-.fab-vendeur-label {
-    white-space: nowrap;
-}
-
-.fab-vendeur-sparkle {
-    font-size: 0.85rem;
-    opacity: 0.9;
-    animation: pulseSparkle 2.5s infinite ease-in-out;
-}
-
-@keyframes pulseSparkle {
-    0%, 100% { opacity: 0.7; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.2); }
+.fab-vendeur:hover i {
+    transform: rotate(-6deg) scale(1.08);
 }
 
 body.matrix-mode .fab-vendeur {
     background: #001500;
-    border-color: var(--accent);
+    border: 1px solid var(--accent);
     color: var(--accent);
     box-shadow: 0 0 20px var(--accent-glow);
-    border-radius: 6px;
+    border-radius: 4px;
 }
-body.matrix-mode .fab-vendeur::before { display: none; }
+body.matrix-mode .fab-vendeur i {
+    color: var(--accent);
+}
 
 /* --- MODAL --- */
 .modal-overlay {
@@ -668,11 +640,11 @@ body.matrix-mode .smart-link:hover { color: var(--accent); }
     width: 42px;
     height: 42px;
     border-radius: 12px;
-    background: linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(168, 85, 247, 0.2));
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(244, 63, 94, 0.15);
+    border: 1px solid rgba(244, 63, 94, 0.35);
+    color: var(--accent);
     display: grid;
     place-items: center;
-    font-size: 1.4rem;
     position: relative;
 }
 
@@ -774,8 +746,11 @@ body.matrix-mode .assistant-bubble {
     font-size: 0.78rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
     color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .bubble-text {
@@ -815,14 +790,21 @@ body.matrix-mode .assistant-movie-card {
 }
 
 .amc-poster-wrap {
-    width: 100px;
-    height: 148px;
+    width: 120px;
+    height: 180px;
     border-radius: 12px;
     overflow: hidden;
     position: relative;
     flex-shrink: 0;
     background: #000;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.amc-poster-wrap:hover {
+    transform: scale(1.02);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.8);
 }
 
 .amc-poster {
@@ -836,21 +818,17 @@ body.matrix-mode .amc-poster {
     filter: grayscale(100%) sepia(100%) hue-rotate(90deg);
 }
 
-.amc-rating-badge {
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    background: rgba(0, 0, 0, 0.78);
-    backdrop-filter: blur(6px);
+.amc-rating-pill {
     color: #fbbf24;
-    font-size: 0.75rem;
     font-weight: 700;
-    padding: 3px 6px;
-    border-radius: 6px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 3px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(251, 191, 36, 0.12);
+    border: 1px solid rgba(251, 191, 36, 0.28);
+    padding: 1px 6px;
+    border-radius: 6px;
+    font-size: 0.76rem;
 }
 
 .amc-details {
@@ -1339,36 +1317,40 @@ body.matrix-mode .user-bubble {
         line-height: 1.45;
     }
 
+    /* FAB Le Vendeur Mobile */
+    .fab-vendeur {
+        width: 54px;
+        height: 54px;
+        border-radius: 18px;
+        bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+        right: 20px;
+        box-shadow: 0 8px 24px var(--accent-glow);
+    }
+
     /* Horizontal Compact Movie Card */
     .assistant-movie-card {
         flex-direction: row;
         align-items: stretch;
         text-align: left;
-        gap: 12px;
-        padding: 10px;
-        border-radius: 14px;
+        gap: 14px;
+        padding: 12px;
+        border-radius: 16px;
         margin-top: 8px;
         max-width: 100%;
         box-sizing: border-box;
     }
     .amc-poster-wrap {
-        width: 74px;
-        height: 110px;
-        border-radius: 8px;
+        width: 108px;
+        height: 162px;
+        border-radius: 10px;
         flex-shrink: 0;
-    }
-    .amc-rating-badge {
-        font-size: 0.68rem;
-        padding: 2px 5px;
-        top: 4px;
-        left: 4px;
     }
     .amc-details {
         flex: 1;
         min-width: 0;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-start;
         align-items: flex-start;
         text-align: left;
     }
@@ -1376,58 +1358,59 @@ body.matrix-mode .user-bubble {
         display: flex;
         align-items: baseline;
         gap: 6px;
-        margin-bottom: 2px;
+        margin-bottom: 3px;
         justify-content: flex-start;
         flex-wrap: wrap;
     }
     .amc-title {
-        font-size: 0.95rem;
+        font-size: 1rem;
         line-height: 1.25;
         font-weight: 700;
         text-align: left;
     }
     .amc-year {
-        font-size: 0.78rem;
+        font-size: 0.8rem;
         color: var(--text-muted);
     }
     .amc-meta-row {
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 0.74rem;
-        margin-bottom: 4px;
+        font-size: 0.76rem;
+        margin-bottom: 5px;
         justify-content: flex-start;
+        flex-wrap: wrap;
     }
     .amc-genres {
         display: flex;
         gap: 4px;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
         justify-content: flex-start;
         flex-wrap: wrap;
     }
     .amc-genre-tag {
-        font-size: 0.68rem;
-        padding: 1px 6px;
-        border-radius: 4px;
+        font-size: 0.7rem;
+        padding: 2px 7px;
+        border-radius: 5px;
     }
     .amc-synopsis-wrap {
         margin-top: 2px;
         width: 100%;
     }
     .amc-synopsis {
-        font-size: 0.76rem;
-        line-height: 1.35;
+        font-size: 0.78rem;
+        line-height: 1.38;
         text-align: left;
     }
     .amc-synopsis.collapsed {
         display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
     .amc-expand-btn {
-        font-size: 0.72rem;
+        font-size: 0.74rem;
         padding: 2px 0;
     }
 

@@ -1056,17 +1056,14 @@ function renderPitchTurn(movie, message) {
     div.innerHTML = `
         <div class="assistant-bubble">
             <div class="bubble-header">
-                <span class="bubble-author">📼 Le Vendeur</span>
+                <span class="bubble-author"><i data-lucide="clapperboard" size="13" aria-hidden="true"></i> Le Vendeur</span>
             </div>
             <p class="bubble-text">${escapeHtml(message)}</p>
         </div>
 
         <div class="assistant-movie-card">
-            <div class="amc-poster-wrap">
+            <div class="amc-poster-wrap" title="Voir la fiche complète">
                 <img src="${posterUrl}" alt="${escapeHtml(movie.title || '')}" class="amc-poster" loading="lazy" onerror="this.src='${IMG_FALLBACK}'">
-                <div class="amc-rating-badge">
-                    <i data-lucide="star" size="12"></i> ${rating}
-                </div>
             </div>
             <div class="amc-details">
                 <div class="amc-header">
@@ -1074,8 +1071,9 @@ function renderPitchTurn(movie, message) {
                     <span class="amc-year">(${year})</span>
                 </div>
                 <div class="amc-meta-row">
-                    ${runtime ? `<span class="amc-meta-item"><i data-lucide="clock" size="12"></i> ${runtime}</span>` : ''}
-                    ${movie.director && movie.director !== 'Inconnu' ? `<span class="amc-meta-item"><i data-lucide="user" size="12"></i> ${escapeHtml(movie.director)}</span>` : ''}
+                    ${rating !== '-' ? `<span class="amc-meta-item amc-rating-pill"><i data-lucide="star" size="12" aria-hidden="true"></i> ${rating}</span>` : ''}
+                    ${runtime ? `<span class="amc-meta-item"><i data-lucide="clock" size="12" aria-hidden="true"></i> ${runtime}</span>` : ''}
+                    ${movie.director && movie.director !== 'Inconnu' ? `<span class="amc-meta-item amc-director" title="${escapeHtml(movie.director)}"><i data-lucide="user" size="12" aria-hidden="true"></i> ${escapeHtml(movie.director)}</span>` : ''}
                 </div>
                 <div class="amc-genres">
                     ${genresHtml}
