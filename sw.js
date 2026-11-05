@@ -1,4 +1,4 @@
-const CACHE_NAME = 'films-famille-v2.7';
+const CACHE_NAME = 'films-famille-v2.8';
 
 // Assets to pre-cache on install (app shell)
 const PRECACHE_ASSETS = [

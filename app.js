@@ -958,6 +958,8 @@ function startAssistantSession() {
     assistantMainView?.classList.remove('hidden');
     assistantTicketView?.classList.add('hidden');
     if (assistantChatMessages) assistantChatMessages.innerHTML = '';
+    if (assistantUserInput) assistantUserInput.value = '';
+    updateCharCount();
     updateCooldownUI(0);
     setInputControlsEnabled(false);
 
@@ -992,7 +994,7 @@ function updateCooldownUI(remaining) {
     if (remaining > 0) {
         assistantCooldownBar?.classList.remove('hidden');
         if (assistantCooldownText) {
-            assistantCooldownText.textContent = `Le vendeur réfléchit... (${remaining}s)`;
+            assistantCooldownText.textContent = `Jean-Marc réfléchit... (${remaining}s)`;
         }
     } else {
         assistantCooldownBar?.classList.add('hidden');
@@ -1026,7 +1028,7 @@ function startCooldown(seconds = 3) {
 
 function updateCharCount() {
     if (!assistantUserInput || !assistantCharCount) return;
-    const remaining = 100 - (assistantUserInput.value.length || 0);
+    const remaining = 150 - (assistantUserInput.value.length || 0);
     assistantCharCount.textContent = remaining;
 }
 
@@ -1077,7 +1079,7 @@ async function fetchAssistantTurn(payload) {
 
     } catch (err) {
         console.error('Assistant turn error:', err);
-        renderErrorBubble(err.message || 'Le vendeur a eu un petit problème pour fouiller dans ses rayons. Réessaie dans un instant.');
+        renderErrorBubble(err.message || 'Jean-Marc a eu un petit problème pour fouiller dans ses rayons. Réessaie dans un instant.');
         setInputControlsEnabled(true);
     } finally {
         assistantState.isLoading = false;
@@ -1107,7 +1109,7 @@ function renderPitchTurn(movie, message) {
     div.innerHTML = `
         <div class="assistant-bubble">
             <div class="bubble-header">
-                <span class="bubble-author"><i data-lucide="clapperboard" size="13" aria-hidden="true"></i> Le Vendeur</span>
+                <span class="bubble-author">Jean-Marc</span>
             </div>
             <p class="bubble-text">${escapeHtml(message)}</p>
         </div>
@@ -1182,7 +1184,7 @@ function renderErrorBubble(errorText) {
     div.innerHTML = `
         <div class="assistant-bubble" style="border-color: rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.08);">
             <div class="bubble-header">
-                <span class="bubble-author" style="color: var(--accent);">⚠️ Le Vendeur</span>
+                <span class="bubble-author" style="color: var(--accent);">Jean-Marc</span>
             </div>
             <p class="bubble-text">${escapeHtml(errorText)}</p>
         </div>
@@ -1274,7 +1276,7 @@ function handleUserTextSubmit(e) {
     if (!assistantState.currentMovie || assistantState.isLoading || assistantState.cooldownRemaining > 0) return;
 
     const rawText = assistantUserInput?.value || '';
-    const cleanText = rawText.trim().slice(0, 100);
+    const cleanText = rawText.trim().slice(0, 150);
     if (!cleanText) return;
 
     if (assistantUserInput) assistantUserInput.value = '';

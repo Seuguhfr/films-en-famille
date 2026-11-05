@@ -659,19 +659,6 @@ body.matrix-mode .smart-link:hover { color: var(--accent); }
     color: var(--accent);
     display: grid;
     place-items: center;
-    position: relative;
-}
-
-.status-indicator {
-    position: absolute;
-    bottom: -2px;
-    right: -2px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--green);
-    border: 2px solid #141417;
-    box-shadow: 0 0 6px var(--green-glow);
 }
 
 .assistant-title-group {
@@ -1040,16 +1027,18 @@ body.matrix-mode .user-bubble {
 .assistant-quick-actions {
     display: flex;
     gap: 10px;
+    width: 100%;
 }
 
 .btn-accept {
-    flex: 1.4;
+    flex: 1 1 0;
+    min-width: 0;
     background: linear-gradient(135deg, #10b981, #059669);
     color: white;
     font-weight: 700;
     border: none;
     border-radius: 14px;
-    padding: 12px 16px;
+    padding: 12px 14px;
     box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35);
     display: inline-flex;
     align-items: center;
@@ -1058,6 +1047,7 @@ body.matrix-mode .user-bubble {
     cursor: pointer;
     font-size: 0.92rem;
     transition: transform 0.2s var(--ease), box-shadow 0.2s;
+    white-space: nowrap;
 }
 
 .btn-accept:hover:not(:disabled) {
@@ -1066,7 +1056,8 @@ body.matrix-mode .user-bubble {
 }
 
 .btn-pass {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.14);
     color: var(--text-main);
@@ -1076,10 +1067,11 @@ body.matrix-mode .user-bubble {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 8px;
     cursor: pointer;
-    font-size: 0.88rem;
+    font-size: 0.92rem;
     transition: all 0.2s;
+    white-space: nowrap;
 }
 
 .btn-pass:hover:not(:disabled) {
@@ -1097,8 +1089,10 @@ body.matrix-mode .user-bubble {
 /* Input Form */
 .assistant-input-form {
     display: flex;
+    align-items: center;
     gap: 8px;
     position: relative;
+    width: 100%;
 }
 
 .btn-label-short {
@@ -1111,15 +1105,18 @@ body.matrix-mode .user-bubble {
     display: flex;
     align-items: center;
     min-width: 0;
+    height: 44px;
 }
 
 .assistant-input {
     width: 100%;
+    height: 44px;
     min-width: 0;
+    box-sizing: border-box;
     background: rgba(0, 0, 0, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 12px;
-    padding: 11px 44px 11px 14px;
+    padding: 0 46px 0 14px;
     color: white;
     font-family: var(--font);
     font-size: 0.9rem;
@@ -1155,15 +1152,17 @@ body.matrix-mode .user-bubble {
     border-radius: 12px;
     width: 44px;
     height: 44px;
-    display: grid;
-    place-items: center;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     flex-shrink: 0;
     transition: transform 0.2s, background 0.2s;
 }
 
 .btn-assistant-send:hover:not(:disabled) {
-    transform: scale(1.05);
+    transform: scale(1.04);
 }
 
 /* Cooldown Bar */
@@ -1447,21 +1446,21 @@ body.matrix-mode .user-bubble {
         display: inline;
     }
     .btn-accept {
-        flex: 1.25;
+        flex: 1 1 0;
         min-width: 0;
-        padding: 10px 8px;
-        font-size: 0.84rem;
+        padding: 11px 8px;
+        font-size: 0.85rem;
         border-radius: 12px;
         gap: 6px;
         white-space: nowrap;
     }
     .btn-pass {
-        flex: 1;
+        flex: 1 1 0;
         min-width: 0;
-        padding: 10px 8px;
-        font-size: 0.82rem;
+        padding: 11px 8px;
+        font-size: 0.85rem;
         border-radius: 12px;
-        gap: 5px;
+        gap: 6px;
         white-space: nowrap;
     }
 
@@ -1469,9 +1468,13 @@ body.matrix-mode .user-bubble {
     .assistant-input-form {
         gap: 6px;
     }
+    .assistant-input-wrapper {
+        height: 40px;
+    }
     .assistant-input {
-        padding: 9px 38px 9px 12px;
-        font-size: 0.84rem;
+        height: 40px;
+        padding: 0 42px 0 12px;
+        font-size: 0.85rem;
         border-radius: 10px;
     }
     .btn-assistant-send {
